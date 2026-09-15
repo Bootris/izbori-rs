@@ -1,9 +1,14 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "izbori/izbori-rs",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "IZBORI.RS — real-time election results platform for Serbia (Laravel 12 + Filament 4 + React SPA)",
+    "keywords": [
+        "laravel",
+        "filament",
+        "elections",
+        "serbia"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.2",

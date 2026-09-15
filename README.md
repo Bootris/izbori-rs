@@ -1,59 +1,101 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# IZBORI.RS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Platforma za objavu izbornih rezultata u realnom vremenu — zapisnici po biračkom
+mestu, D'Hondt raspodela mandata, skenirani zapisnici, immutable snapshot-ovi i
+javni sajt koji radi i kad backend padne. Po uzoru na mađarski VTR, prilagođeno
+srpskom izbornom sistemu (parlamentarni, pokrajinski, lokalni, predsednički).
 
-## About Laravel
+- Specifikacija: [docs/IZBORNI-SISTEM.md](docs/IZBORNI-SISTEM.md)
+- Analiza uzora (vtr.valasztas.hu): [docs/ANALIZA-VTR-HU.md](docs/ANALIZA-VTR-HU.md)
+- Ugovor podataka za javni sajt: [docs/DATA-CONTRACT.md](docs/DATA-CONTRACT.md)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Brzi start
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```bash
+./start.sh              # http://127.0.0.1:8000  — sajt, admin i demo podaci
+./start.sh --dev        # + hot reload, queue worker, scheduler
+./start.sh --fresh      # sve ispočetka
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Skripta sama odradi `composer install`, `npm install`, migracije, seed
+administratora, demo izbor (fiktivne liste, ~900 biračkih mesta, generisani
+zapisnici), objavu sva tri snapshot izvora i `npm run build`.
 
-## Learning Laravel
+| | |
+|---|---|
+| Sajt | `http://127.0.0.1:8000/` |
+| Podaci | `http://127.0.0.1:8000/data/index.json` |
+| Admin | `http://127.0.0.1:8000/admin` (`ADMIN_PATH` u `.env`) |
+| Admin nalog | `admin@example.com` / `password` (iz `SEED_ADMIN_*`) |
+| OIK nalog (demo) | `oik.nis@example.com` / `password` — verifikator, samo Niš – Medijana |
+| Operater (demo) | `operater.nis@example.com` / `password` — samo unos |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+> ⚠ Promeni lozinke i postavi nasumičan `ADMIN_PATH` pre bilo kakvog javnog deploy-a.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Kako radi
 
-## Laravel Sponsors
+```
+Biračko mesto / OIK  →  Filament admin (unos + K1–K7 kontrole + verifikacija)
+                              │
+                              ▼
+                        PostgreSQL / SQLite  ──►  izbori:publish  ──►  public/data/{izbor}/{MMDDHHmm}/{izvor}/*.json
+                                                                       + manifest.json (SHA-256 lanac)
+                                                                       + config.json (atomski switch)
+                                                                              │
+                                                                              ▼
+                                                              React SPA čita samo statičke JSON fajlove
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Unos.** Operater/OIK unosi zapisnik biračkog odbora. Kontrolne sume K1–K7 se
+   računaju uživo; zapisnik sa greškom se čuva kao *sa odstupanjem*, javno se
+   vidi, ali ne ulazi u zbir.
+2. **Verifikacija.** OIK verifikuje; tek verifikovani zapisnik ulazi u agregate.
+   Svaka izmena vraća ga u „unet" i pamti se u istoriji (ko, kada, sa koje na koju
+   vrednost).
+3. **Objava.** `izbori:publish` (ručno iz admina ili scheduler na 2 min tokom
+   brojanja) generiše kompletan set fajlova u novi, nepromenljiv folder, upiše
+   manifest sa hash-om svakog fajla vezanim za prethodnu objavu, pa tek na kraju
+   prebaci `config.json`. Prekid u bilo kojoj tački ne ostavlja sajt u
+   nekonzistentnom stanju.
+4. **Prikaz.** SPA polluje `config.json`; kad se verzija promeni, povlači nove
+   fajlove. Na svakom agregatu stoji `processed` — procenat obrađenih biračkih
+   mesta.
 
-### Premium Partners
+## Admin panel
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+| Grupa | Šta se radi |
+|---|---|
+| **Zapisnici** | Unos i verifikacija zapisnika (živi K1–K7, skenirani PDF/slika, poništenje, istorija izmena); izlaznost po presecima |
+| **Izbori** | Izbori (tip, datum, pravila: mandati, cenzus, manjinski koeficijent, krugovi), izborne jedinice, rokovi, podnosioci, izborne liste i kandidati |
+| **Teritorija** | Okruzi, opštine, biračka mesta (ili CSV uvoz: `izbori:import-stations`) |
+| **Objava** | Istorija snapshot-ova (verzija, hash, veličina, trajanje), ručna objava |
+| **Sistem** | Korisnici i uloge (admin / verifikator / operater + opština), podešavanja sajta |
 
-## Contributing
+## Komande
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan izbori:demo --publish                       # fiktivni parlamentarni izbori + objava
+php artisan izbori:publish parlament-2026-demo --all    # registry + turnout + results
+php artisan izbori:publish <slug> --source=results
+php artisan izbori:import-stations <slug> stations.csv  # district_code,district_name,municipality_code,municipality_name,number,name,address,registered_voters,accessible,is_diaspora,country,lat,lng
+php artisan schedule:work                               # automatska objava dok je status "brojanje"
+php artisan test                                        # 26 testova (D'Hondt, K1–K7, workflow, admin, objava)
+```
 
-## Code of Conduct
+## Struktura podataka (skraćeno)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+`elections` → `election_units` ⇄ `municipalities` → `polling_stations` → `protocols`
+(+ `protocol_items` po listi, `protocol_scans`, `protocol_revisions`) ·
+`submitters` → `electoral_lists` → `candidates` · `turnout_snapshots` · `deadlines`
+· `allocations` + `allocation_seats` · `snapshots` · `settings` · `users`.
+Detalji u [docs/IZBORNI-SISTEM.md](docs/IZBORNI-SISTEM.md) §2 i migraciji
+`database/migrations/2026_09_15_000001_create_election_tables.php`.
 
-## Security Vulnerabilities
+## Produkcija (kratko)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- `DB_CONNECTION=pgsql`, `QUEUE_CONNECTION=database` + `php artisan queue:work`,
+  `php artisan schedule:run` u cron-u svakog minuta.
+- `public/data/` iza CDN-a: sve osim `config.json` i `index.json` je
+  `Cache-Control: public, max-age=31536000, immutable`; ta dva su `no-cache`.
+  Vidi `docs/DEPLOY.md`.
+- Nasumičan `ADMIN_PATH`, prave `SEED_ADMIN_*` vrednosti, `APP_DEBUG=false`.
