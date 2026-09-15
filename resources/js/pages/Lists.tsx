@@ -60,16 +60,16 @@ export function Lists() {
                         {({ list }) => (
                             <Card>
                                 <p className="muted mb-3">{t('Rezultati još nisu objavljeni. Prikazane su proglašene liste.')}</p>
-                                <div className="overflow-x-auto">
-                                    <table className="data">
+                                <div className="scroll-x">
+                                    <table className="data stack">
                                         <thead><tr><th className="num">#</th><th>{t('Lista')}</th><th>{t('Nosilac')}</th><th className="num">{t('Kandidata')}</th></tr></thead>
                                         <tbody>
                                             {list.map((l) => (
                                                 <tr key={l.id}>
-                                                    <td className="num">{l.number}.</td>
-                                                    <td><span className="flex items-center gap-2"><Swatch color={l.color} index={l.number - 1} /><Link className="link" to={`/${slug}/liste/${l.id}`}>{t(l.name)}</Link>{l.is_minority && <span className="badge badge-blue">{t('manjinska')}</span>}</span></td>
-                                                    <td>{t(l.holder_name)}</td>
-                                                    <td className="num">{l.candidates.length}</td>
+                                                    <td className="num drop">{l.number}.</td>
+                                                    <td className="lead"><span className="flex items-start gap-2"><span className="mt-1"><Swatch color={l.color} index={l.number - 1} /></span><span className="min-w-0"><Link className="link" to={`/${slug}/liste/${l.id}`}>{l.number}. {t(l.name)}</Link>{l.is_minority && <span className="badge badge-blue ml-2 align-middle">{t('manjinska')}</span>}</span></span></td>
+                                                    <td data-label={t('Nosilac')}>{t(l.holder_name)}</td>
+                                                    <td className="num" data-label={t('Kandidata')}>{l.candidates.length}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
