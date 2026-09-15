@@ -28,6 +28,13 @@ use Illuminate\Support\Collection;
  */
 final class SnapshotBuilder
 {
+    /** Totals columns that add up across municipalities (the rest are recomputed). */
+    private const DISTRICT_SUMS = [
+        'stations_total', 'stations_verified', 'stations_entered', 'stations_flagged',
+        'registered_voters_all', 'registered_voters', 'voters_voted',
+        'ballots_in_box', 'ballots_valid', 'ballots_invalid',
+    ];
+
     public function __construct(
         private readonly ResultsAggregator $aggregator,
         private readonly AllocatorFactory $allocators,
@@ -375,11 +382,13 @@ final class SnapshotBuilder
             ->get()->keyBy('polling_station_id');
         $stationsByMunicipality = $stations->groupBy('municipality_id');
         $flagged = [];
+        $districtTotals = [];
 
         foreach ($municipalities as $m) {
             $unit = $unitByMunicipality[$m->id] ?? null;
             $mTotals = $this->aggregator->forMunicipality($election, $m, $round);
             $mRows = $unit ? $this->aggregator->listRows($unit->lists, $mTotals['votes_by_list'], $mTotals['ballots_valid']) : [];
+            $this->addToDistrict($districtTotals, $m, $unit, $mTotals);
 
             $files[$this->municipalityFile('results', $m)] = ['processed' => $mTotals['processed'], 'data' => [
                 'code' => $m->code,
@@ -411,8 +420,71 @@ final class SnapshotBuilder
         }
 
         $files['flagged.json'] = ['processed' => $countryTotals['processed'], 'list' => $flagged];
+        $files['results-districts.json'] = ['processed' => $countryTotals['processed'], 'list' => $this->districtRows($districtTotals, $units)];
 
         return $files;
+    }
+
+    /**
+     * Running sum of one district: municipality totals add up, per-list votes add
+     * up, and the unit is kept only while every municipality shares the same one
+     * (local elections can split a district across units, where list rows would
+     * not be comparable).
+     *
+     * @param array<string, array<string, mixed>> $districts
+     * @param array<string, mixed> $mTotals
+     */
+    private function addToDistrict(array &$districts, Municipality $m, ?ElectionUnit $unit, array $mTotals): void
+    {
+        $code = $m->district->code;
+        $districts[$code] ??= [
+            'name' => $m->district->name,
+            'unit' => $unit,
+            'mixed_units' => false,
+            'votes' => [],
+            'sums' => array_fill_keys(self::DISTRICT_SUMS, 0),
+        ];
+
+        if ($districts[$code]['unit']?->id !== $unit?->id) {
+            $districts[$code]['mixed_units'] = true;
+        }
+        foreach (self::DISTRICT_SUMS as $key) {
+            $districts[$code]['sums'][$key] += (int) $mTotals[$key];
+        }
+        foreach ($mTotals['votes_by_list'] as $listId => $votes) {
+            $districts[$code]['votes'][$listId] = ($districts[$code]['votes'][$listId] ?? 0) + (int) $votes;
+        }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $districts
+     * @param Collection<int, ElectionUnit> $units
+     * @return array<int, array<string, mixed>>
+     */
+    private function districtRows(array $districts, Collection $units): array
+    {
+        $rows = [];
+        foreach ($districts as $code => $d) {
+            $sums = $d['sums'];
+            $unit = $d['mixed_units'] ? null : $d['unit'];
+            $registered = $sums['registered_voters'];
+            $voted = $sums['voters_voted'];
+
+            $rows[] = [
+                'district_code' => (string) $code,
+                'name' => $d['name'],
+                'unit_code' => $unit?->code,
+                ...$sums,
+                'processed' => $sums['stations_total'] > 0 ? round($sums['stations_verified'] / $sums['stations_total'] * 100, 2) : 0.0,
+                'turnout_pct' => $registered > 0 ? round($voted / $registered * 100, 2) : 0.0,
+                'invalid_pct' => $voted > 0 ? round($sums['ballots_invalid'] / $voted * 100, 2) : 0.0,
+                'lists' => $unit ? $this->aggregator->listRows($unit->lists, $d['votes'], $sums['ballots_valid']) : [],
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b) => $a['district_code'] <=> $b['district_code']);
+
+        return $rows;
     }
 
     /**
@@ -558,7 +630,8 @@ final class SnapshotBuilder
             return $row;
         }
 
-        return $row + [
+        // array_merge, not `+`: the union operator keeps the null `status` already in $row.
+        return array_merge($row, [
             'status' => $p->status->value,
             'revision' => $p->revision,
             'recount_requested' => $p->recount_requested,
@@ -579,7 +652,7 @@ final class SnapshotBuilder
                 'votes_pct' => $p->ballots_valid > 0 ? round($i->votes / $p->ballots_valid * 100, 2) : 0.0,
             ])->values()->all(),
             'scans' => $p->scans->map(fn ($s) => $s->url())->all(),
-        ];
+        ]);
     }
 
     /** @return array<string, mixed> */

@@ -55,6 +55,15 @@ class SnapshotPublishTest extends TestCase
             $this->assertIsString($row['district_code'], 'district codes must stay strings (PHP int-casts numeric array keys)');
         }
 
+        $protocols = json_decode($disk->get("{$results->path}/20/protocols-20-2001.json"), true)['list'];
+        $entered = array_values(array_filter($protocols, fn (array $r) => ($r['items'] ?? []) !== []));
+        $this->assertNotEmpty($entered, 'the demo municipality must have entered protocols');
+        $this->assertContains('verified', array_column($entered, 'status'), 'verified protocols must reach the published file as verified');
+        foreach ($entered as $row) {
+            $this->assertNotNull($row['status'], 'a protocol with votes must publish its status (array union keeps the null placeholder)');
+            $this->assertContains($row['status'], ['entered', 'flagged', 'verified', 'annulled']);
+        }
+
         $summary = json_decode($disk->get("{$results->path}/results-summary.json"), true);
         $this->assertSame('results', $summary['meta']['source']);
         $this->assertGreaterThan(0, $summary['meta']['processed']);

@@ -62,6 +62,7 @@ Klijent pollinguje ovaj fajl (npr. na 60 s); kad se broj promeni, ponovo učitav
 | `composition.json` | data | `{seats_total, seats_allocated, seats_empty, by_list:[{name, short_name, color, is_minority, seats, votes, list_ids[], seats_pct}], seats:[Seat + unit_code]}` |
 | `winners.json` | list | `[{unit_code, unit_name, processed, leader:{list_id,name,votes,votes_pct,seats}, margin_pct, winner, runoff[]}]` |
 | `close-races.json` | list | `[{type:"threshold", unit_code, list_id, name, margin_pct} \| {type:"first_second", unit_code, list_ids[], names[], margin_pct}]` |
+| `results-districts.json` | list | `[{district_code, name, unit_code, …Totals, lists:[ListRow]}]` — zbir opština okruga; `lists` je prazna kad okrug pokriva više izbornih jedinica |
 | `flagged.json` | list | `[{station_id, station_name, municipality_code, municipality_name, district_code, deviation, errors:{K4:"…"}, revision}]` |
 | `{d}/results-{d}-{m}.json` | data | `{code, name, district_code, unit_code, …Totals, lists:[ListRow]}` |
 | `{d}/protocols-{d}-{m}.json` | list | `[Station + {status: null \| "entered"\|"flagged"\|"verified"\|"annulled", revision, recount_requested, registered_voters_protocol, ballots_received, ballots_unused, voters_voted, turnout_pct, ballots_in_box, ballots_valid, ballots_invalid, deviation, errors, verified_at, items:[{list_id, votes, votes_pct}], scans:[url]}]` |
