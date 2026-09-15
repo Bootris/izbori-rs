@@ -687,7 +687,7 @@ final class Parliamentary2023Seeder extends Seeder
 
         if ($mismatch) {
             $this->command?->warn($this->stage === 'final'
-                ? 'Raspodela mandata se razlikuje od zvanične — proveri glasove manjinskih lista u data/parliamentary_2023.php.'
+                ? 'Raspodela mandata se razlikuje od zvanične: proveri glasove manjinskih lista u data/parliamentary_2023.php.'
                 : 'U fazi "counting" raspodela ide samo po verifikovanim zapisnicima, pa se ne mora poklapati sa zvaničnom.');
         }
     }
