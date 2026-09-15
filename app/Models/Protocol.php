@@ -63,7 +63,7 @@ class Protocol extends Model
 
     public function revisions(): HasMany
     {
-        return $this->hasMany(ProtocolRevision::class)->orderByDesc('created_at');
+        return $this->hasMany(ProtocolRevision::class)->orderByDesc('created_at')->orderByDesc('id');
     }
 
     public function enteredBy(): BelongsTo
