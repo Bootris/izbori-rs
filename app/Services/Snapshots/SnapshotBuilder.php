@@ -236,8 +236,9 @@ final class SnapshotBuilder
 
         $files = [];
         $files['turnout-country.json'] = ['processed' => null, 'list' => $rollup($municipalityList)];
+        // PHP turns numeric array keys ("12") into ints — keep codes textual as DATA-CONTRACT promises.
         $files['turnout-districts.json'] = ['processed' => null, 'list' => $municipalityList->groupBy('district_code')->map(fn ($g, $code) => [
-            'district_code' => $code,
+            'district_code' => (string) $code,
             'registered_voters' => (int) $g->sum('registered_voters'),
             'cutoffs' => $rollup($g),
         ])->sortKeys()->values()->all()];

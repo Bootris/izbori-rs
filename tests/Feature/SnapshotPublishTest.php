@@ -50,6 +50,11 @@ class SnapshotPublishTest extends TestCase
             $this->assertTrue($disk->exists("{$results->path}/{$file}"), "missing {$file}");
         }
 
+        $districtTurnout = json_decode($disk->get("{$turnout->path}/turnout-districts.json"), true)['list'];
+        foreach ($districtTurnout as $row) {
+            $this->assertIsString($row['district_code'], 'district codes must stay strings (PHP int-casts numeric array keys)');
+        }
+
         $summary = json_decode($disk->get("{$results->path}/results-summary.json"), true);
         $this->assertSame('results', $summary['meta']['source']);
         $this->assertGreaterThan(0, $summary['meta']['processed']);
