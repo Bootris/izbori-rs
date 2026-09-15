@@ -7,6 +7,7 @@ namespace App\Services\Snapshots;
 use App\Enums\ElectionStatus;
 use App\Enums\SnapshotSource;
 use App\Models\Election;
+use App\Models\Setting;
 use App\Models\Snapshot;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -168,8 +169,17 @@ final class SnapshotPublisher
             ->filter(fn ($e) => $e['sources']['registry'] !== null)
             ->values();
 
+        $settings = Setting::allCached();
+
         $this->putAtomic($disk, 'index.json', $this->encode([
             'generated' => now()->toIso8601String(),
+            'site' => [
+                'name' => $settings['site_name'] ?? config('app.name'),
+                'publisher' => $settings['publisher'] ?? null,
+                'notice' => ($settings['public_notice'] ?? '') ?: null,
+                'contact_email' => ($settings['contact_email'] ?? '') ?: null,
+                'methodology_url' => ($settings['methodology_url'] ?? '') ?: null,
+            ],
             'default' => $elections->first()['slug'] ?? null,
             'elections' => $elections->all(),
         ]));
