@@ -1,17 +1,44 @@
 const nf = new Intl.NumberFormat('sr-Latn-RS');
 const pf = new Intl.NumberFormat('sr-Latn-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const df = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const pf1 = new Intl.NumberFormat('sr-Latn-RS', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const df = new Intl.DateTimeFormat('sr-Latn-RS', { day: 'numeric', month: 'long', year: 'numeric' });
+const dfShort = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const dtf = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-export const num = (v: number | null | undefined): string => (v == null ? '—' : nf.format(v));
-export const pct = (v: number | null | undefined): string => (v == null ? '—' : `${pf.format(v)} %`);
-export const date = (iso: string | null | undefined): string => (iso ? df.format(new Date(iso)) : '—');
-export const dateTime = (iso: string | null | undefined): string => (iso ? dtf.format(new Date(iso)) : '—');
+/** Placeholder for a value that is not published yet. */
+export const NA = '-';
 
-/** Fallback categorical slot for a list without its own color (validated default palette, fixed order). */
+export const num = (v: number | null | undefined): string => (v == null ? NA : nf.format(v));
+export const pct = (v: number | null | undefined): string => (v == null ? NA : `${pf.format(v)} %`);
+export const pct1 = (v: number | null | undefined): string => (v == null ? NA : `${pf1.format(v)} %`);
+export const date = (iso: string | null | undefined): string => (iso ? dfShort.format(new Date(iso)) : NA);
+export const dateLong = (iso: string | null | undefined): string => (iso ? df.format(new Date(iso)) : NA);
+export const dateTime = (iso: string | null | undefined): string => (iso ? dtf.format(new Date(iso)) : NA);
+
+/** Fallback categorical slot for a list without its own color (fixed order, never cycled past 8). */
 export const seriesColor = (index: number): string => `var(--series-${(index % 8) + 1})`;
 
 export const listColor = (color: string | null | undefined, index: number): string => color || seriesColor(index);
+
+/** Short label for a list: its short name, else the first words of the full name. */
+export const shortName = (name: string, short: string | null | undefined): string => {
+    if (short) return short;
+    const words = name.split(/\s+/);
+    return words.length <= 3 ? name : `${words.slice(0, 3).join(' ')}...`;
+};
+
+/** Serbian plural: plural(3, ['opština', 'opštine', 'opština']) picks the form for 1 / 2-4 / 5+. */
+export const plural = (n: number, forms: [string, string, string]): string => {
+    const m10 = n % 10;
+    const m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return forms[0];
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return forms[1];
+    return forms[2];
+};
+
+/** Case- and diacritic-insensitive search key (Č, Ć, Š, Ž, Đ fold to ASCII). */
+export const searchKey = (s: string): string =>
+    s.toLowerCase().replace(/đ/g, 'dj').normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export const ELECTION_TYPE_LABEL: Record<string, string> = {
     parliamentary: 'Parlamentarni izbori',

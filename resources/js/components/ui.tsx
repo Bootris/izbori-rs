@@ -1,32 +1,173 @@
-import type { ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import type { Meta } from '@/types';
 import { useT } from '@/app/hooks';
 import { dateTime, listColor, pct } from '@/lib/format';
 
-export function PageTitle({ title, meta, children }: { title: string; meta?: Meta; children?: ReactNode }) {
+/* ---------- icons (inline SVG, no icon font) ---------- */
+
+export function IconSearch({ className = 'h-5 w-5' }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+        </svg>
+    );
+}
+
+export function IconChevron({ open = false, className = 'h-5 w-5' }: { open?: boolean; className?: string }) {
+    return (
+        <svg className={`${className} shrink-0 text-primary transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+        </svg>
+    );
+}
+
+export function IconArrow({ className = 'h-4 w-4' }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+    );
+}
+
+/** Ring that reads as "how much of the count is in": full green at 100 %, blue arc otherwise. */
+export function RingIndicator({ value, size = 20 }: { value: number; size?: number }) {
+    const r = 8;
+    const c = 2 * Math.PI * r;
+    const done = value >= 100;
+    return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="10" cy="10" r={r} fill="none" stroke={done ? 'var(--color-ok)' : 'var(--color-track)'} strokeWidth="4" />
+            {!done && <circle cx="10" cy="10" r={r} fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeDasharray={`${(Math.max(0, Math.min(100, value)) / 100) * c} ${c}`} transform="rotate(-90 10 10)" />}
+        </svg>
+    );
+}
+
+/* ---------- page chrome ---------- */
+
+export function PageTitle({ title, sub, meta, children }: { title: string; sub?: ReactNode; meta?: Meta; children?: ReactNode }) {
     const t = useT();
     return (
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-                <h1>{t(title)}</h1>
-                {children && <div className="muted mt-1">{children}</div>}
+        <div className="mb-5">
+            {meta && <Updated meta={meta} />}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h1>{t(title)}</h1>
+                    {sub && <div className="muted mt-1">{sub}</div>}
+                </div>
+                {meta?.processed != null && <Processed value={meta.processed} />}
             </div>
-            {meta && <ProcessedBadge meta={meta} />}
+            {children}
         </div>
     );
 }
 
-/** Every results view carries this: how much of the count is in, and when the file was generated. */
-export function ProcessedBadge({ meta }: { meta: Meta }) {
+export function Updated({ meta }: { meta: Meta }) {
+    const t = useT();
+    return <p className="muted mb-3">{t('Podaci ažurirani')}: {dateTime(meta.generated)}</p>;
+}
+
+/** "Obrađeno: 100 %" with the ring, the trust signal next to every aggregate. */
+export function Processed({ value, label = 'Obrađeno biračkih mesta' }: { value: number; label?: string }) {
     const t = useT();
     return (
-        <div className="text-right text-sm">
-            {meta.processed !== null && (
-                <div className="font-semibold">
-                    {t('Obrađeno')} {pct(meta.processed)} {t('biračkih mesta')}
-                </div>
-            )}
-            <div className="muted">{t('Podaci ažurirani')} {dateTime(meta.generated)} · v{meta.version}</div>
+        <div className="flex items-center gap-2 text-sm text-ink-2">
+            <span>{t(label)}: <b className="text-ink">{pct(value)}</b></span>
+            <RingIndicator value={value} />
+        </div>
+    );
+}
+
+export function SectionHead({ title, right, className = '' }: { title: string; right?: ReactNode; className?: string }) {
+    const t = useT();
+    return (
+        <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 ${className}`}>
+            <h2>{t(title)}</h2>
+            {right}
+        </div>
+    );
+}
+
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+    return <div className={`card ${className}`}>{children}</div>;
+}
+
+/** Gray full-bleed band that holds the white cards. */
+export function Band({ children, className = '' }: { children: ReactNode; className?: string }) {
+    return <div className={`band py-6 md:py-8 ${className}`}><div className="space-y-6">{children}</div></div>;
+}
+
+/* ---------- controls ---------- */
+
+export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: string }>; value: T; onChange: (v: T) => void; label: string }) {
+    const t = useT();
+    return (
+        <div className="seg" role="tablist" aria-label={t(label)}>
+            {options.map((o) => (
+                <button key={o.value} type="button" role="tab" aria-selected={o.value === value} className={`seg-btn ${o.value === value ? 'seg-btn-active' : ''}`} onClick={() => onChange(o.value)}>
+                    {t(o.label)}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+export function Accordion({ title, right, children, defaultOpen = false }: { title: ReactNode; right?: ReactNode; children: ReactNode; defaultOpen?: boolean }) {
+    const [open, setOpen] = useState(defaultOpen);
+    const id = useId();
+    return (
+        <div className="acc">
+            <button type="button" className="acc-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+                <span>{title}</span>
+                <span className="flex items-center gap-3 text-sm font-medium text-ink-2">{right}<IconChevron open={open} /></span>
+            </button>
+            {open && <div id={id} className="acc-body">{children}</div>}
+        </div>
+    );
+}
+
+/* ---------- figures ---------- */
+
+/** Green ring with the value beside it, the turnout figure of every results page. */
+export function Donut({ value, label, sub, size = 84 }: { value: number | null | undefined; label: string; sub?: ReactNode; size?: number }) {
+    const t = useT();
+    const r = 15.5;
+    const c = 2 * Math.PI * r;
+    const v = Math.max(0, Math.min(100, value ?? 0));
+    return (
+        <div className="flex items-center gap-4">
+            <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
+                <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-track)" strokeWidth="7" />
+                <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-ok)" strokeWidth="7" strokeDasharray={`${(v / 100) * c} ${c}`} transform="rotate(-90 20 20)" />
+            </svg>
+            <div>
+                <div className="text-sm text-ink-2">{t(label)}</div>
+                <div className="text-2xl font-bold tabular-nums md:text-[26px]">{pct(value)}</div>
+                {sub && <div className="muted">{sub}</div>}
+            </div>
+        </div>
+    );
+}
+
+export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+    const t = useT();
+    return (
+        <div className="card-flat">
+            <div className="text-sm text-ink-2">{t(label)}</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
+            {sub && <div className="muted mt-1">{sub}</div>}
+        </div>
+    );
+}
+
+export function Swatch({ color, index }: { color: string | null | undefined; index: number }) {
+    return <span className="inline-block h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: listColor(color, index) }} aria-hidden="true" />;
+}
+
+export function Bar({ value, max, color, index, className = '' }: { value: number; max: number; color: string | null | undefined; index: number; className?: string }) {
+    const width = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+    return (
+        <div className={`bar-track ${className}`}>
+            <div className="bar-fill" style={{ width: `${width}%`, background: listColor(color, index) }} />
         </div>
     );
 }
@@ -35,30 +176,6 @@ export function ProcessedBar({ value }: { value: number }) {
     return (
         <div className="bar-track" aria-hidden="true">
             <div className="bar-fill bg-primary" style={{ width: `${Math.min(100, value)}%` }} />
-        </div>
-    );
-}
-
-export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
-    const t = useT();
-    return (
-        <div className="card">
-            <div className="muted">{t(label)}</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
-            {sub && <div className="muted mt-1">{sub}</div>}
-        </div>
-    );
-}
-
-export function Swatch({ color, index }: { color: string | null | undefined; index: number }) {
-    return <span className="inline-block h-3 w-3 shrink-0 rounded-sm" style={{ background: listColor(color, index) }} aria-hidden="true" />;
-}
-
-export function Bar({ value, max, color, index }: { value: number; max: number; color: string | null | undefined; index: number }) {
-    const width = max > 0 ? (value / max) * 100 : 0;
-    return (
-        <div className="bar-track">
-            <div className="bar-fill" style={{ width: `${width}%`, background: listColor(color, index) }} />
         </div>
     );
 }
@@ -78,11 +195,11 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
 export function Breadcrumbs({ items }: { items: Array<{ label: string; to?: string }> }) {
     const t = useT();
     return (
-        <nav className="muted mb-3" aria-label="Putanja">
+        <nav className="muted mb-3 flex flex-wrap items-center gap-1" aria-label="Putanja">
             {items.map((item, i) => (
-                <span key={`${item.label}-${i}`}>
-                    {i > 0 && ' › '}
-                    {item.to ? <a className="link" href={item.to}>{t(item.label)}</a> : <span>{t(item.label)}</span>}
+                <span key={`${item.label}-${i}`} className="flex items-center gap-1">
+                    {i > 0 && <span aria-hidden="true">/</span>}
+                    {item.to ? <a className="link font-normal" href={item.to}>{t(item.label)}</a> : <span className="text-ink">{t(item.label)}</span>}
                 </span>
             ))}
         </nav>

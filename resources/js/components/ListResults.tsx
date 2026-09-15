@@ -11,50 +11,56 @@ interface Props {
     slug: string;
     showSeats?: boolean;
     thresholdVotes?: number;
+    seatsTotal?: number | null;
 }
 
-/** Votes per list with proportional bars; sorted by votes, ballot number kept visible. */
-export function ListResults({ rows, slug, showSeats = false, thresholdVotes }: Props) {
+/** Votes per list, sorted by votes: name and holder, mandates, share with the count, proportional bar. */
+export function ListResults({ rows, slug, showSeats = false, thresholdVotes, seatsTotal }: Props) {
     const t = useT();
     const sorted = [...rows].sort((a, b) => b.votes - a.votes);
     const max = sorted[0]?.votes ?? 0;
     return (
-        <div className="overflow-x-auto">
-            <table className="data">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>{t('Izborna lista')}</th>
-                        <th className="w-1/3">{t('Glasova')}</th>
-                        <th className="num">{t('Broj')}</th>
-                        <th className="num">%</th>
-                        {showSeats && <th className="num">{t('Mandata')}</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {sorted.map((r) => (
-                        <tr key={r.list_id} className={r.qualified === false ? 'text-zinc-500' : ''}>
-                            <td className="num">{r.number}.</td>
-                            <td>
-                                <div className="flex items-center gap-2">
-                                    <Swatch color={r.color} index={r.number - 1} />
-                                    <Link className="link no-underline hover:underline" to={`/${slug}/liste/${r.list_id}`}>{t(r.name)}</Link>
-                                    {r.is_minority && <span className="badge badge-blue">{t('manjinska')}</span>}
-                                    {r.qualified === false && <span className="badge badge-gray">{t('ispod cenzusa')}</span>}
-                                </div>
-                                {r.holder_name && <div className="muted">{t(r.holder_name)}</div>}
-                            </td>
-                            <td><Bar value={r.votes} max={max} color={r.color} index={r.number - 1} /></td>
-                            <td className="num">{num(r.votes)}</td>
-                            <td className="num">{pct(r.votes_pct)}</td>
-                            {showSeats && <td className="num font-semibold">{r.seats ?? 0}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            {thresholdVotes !== undefined && thresholdVotes > 0 && (
-                <p className="muted mt-2">{t('Cenzus')}: {num(thresholdVotes)} {t('glasova (3 % birača koji su glasali). Manjinske liste učestvuju i ispod cenzusa; njihovi količnici se uvećavaju za 35 %.')}</p>
+        <div>
+            {(showSeats || thresholdVotes) && (
+                <p className="mb-3 text-sm text-ink-2">
+                    {showSeats && seatsTotal != null && <>{t('Broj mandata')}: <b className="text-ink">{num(seatsTotal)}</b>. </>}
+                    {thresholdVotes !== undefined && thresholdVotes > 0 && <>{t('Cenzus')}: <b className="text-ink">{num(thresholdVotes)}</b> {t('glasova (3 % birača koji su glasali). Liste nacionalnih manjina učestvuju u raspodeli i ispod cenzusa.')}</>}
+                </p>
             )}
+            <div className="overflow-x-auto">
+                <table className="data md:min-w-[640px]">
+                    <thead>
+                        <tr>
+                            <th>{t('Izborna lista')}</th>
+                            {showSeats && <th className="num">{t('Mandata')}</th>}
+                            <th className="num">{t('Glasova')}</th>
+                            <th className="hidden w-[26%] md:table-cell"><span className="sr-only">{t('Udeo')}</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sorted.map((r) => (
+                            <tr key={r.list_id} className={r.qualified === false ? 'text-ink-3' : ''}>
+                                <td>
+                                    <div className="flex items-start gap-2.5">
+                                        <span className="mt-1"><Swatch color={r.color} index={r.number - 1} /></span>
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <Link className="link" to={`/${slug}/liste/${r.list_id}`}>{r.number}. {t(r.name)}</Link>
+                                                {r.is_minority && <span className="badge badge-blue">{t('manjinska lista')}</span>}
+                                                {r.qualified === false && <span className="badge badge-gray">{t('ispod cenzusa')}</span>}
+                                            </div>
+                                            {r.holder_name && <div className="muted">{t(r.holder_name)}</div>}
+                                        </div>
+                                    </div>
+                                </td>
+                                {showSeats && <td className="num strong">{r.seats ?? 0}</td>}
+                                <td className="num !whitespace-normal md:!whitespace-nowrap"><b>{pct(r.votes_pct)}</b> <span className="block text-ink-3 md:inline">({num(r.votes)})</span></td>
+                                <td className="hidden md:table-cell"><Bar value={r.votes} max={max} color={r.color} index={r.number - 1} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

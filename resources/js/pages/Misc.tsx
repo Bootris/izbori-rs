@@ -5,27 +5,31 @@ import { useSnapshotList, useT } from '@/app/hooks';
 import type { Deadline, Source } from '@/types';
 import { date } from '@/lib/format';
 import { WithFile } from '@/components/state';
-import { PageTitle } from '@/components/ui';
+import { Band, Card, PageTitle } from '@/components/ui';
 
 export function Deadlines() {
     const t = useT();
     const deadlines = useSnapshotList<Deadline>('registry', 'deadlines.json');
     const today = new Date().toISOString().slice(0, 10);
     return (
-        <div className="space-y-6">
-            <PageTitle title="Izborni rokovi" meta={deadlines.meta} />
-            <WithFile state={deadlines} unavailable={t('Registar još nije objavljen.')}>
-                {({ list }) => (
-                    <ol className="card divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {list.map((d) => (
-                            <li key={`${d.date}-${d.title}`} className={`flex gap-4 py-3 ${d.date < today ? 'text-zinc-500' : ''}`}>
-                                <span className="w-24 shrink-0 tabular-nums">{date(d.date)}</span>
-                                <span><span className="font-medium">{t(d.title)}</span>{d.description && <div className="muted">{t(d.description)}</div>}{d.legal_basis && <div className="muted">{t(d.legal_basis)}</div>}</span>
-                            </li>
-                        ))}
-                    </ol>
-                )}
-            </WithFile>
+        <div>
+            <PageTitle title="Izborni rokovi" meta={deadlines.meta} sub={t('Kalendar izbornih radnji po Zakonu o izboru narodnih poslanika i rokovniku izborne komisije.')} />
+            <Band>
+                <Card>
+                    <WithFile state={deadlines} unavailable={t('Registar još nije objavljen.')}>
+                        {({ list }) => (
+                            <ol className="divide-y divide-line-2">
+                                {list.map((d) => (
+                                    <li key={`${d.date}-${d.title}`} className={`flex gap-5 py-3.5 ${d.date < today ? 'text-ink-3' : ''}`}>
+                                        <span className="w-24 shrink-0 font-semibold tabular-nums">{date(d.date)}</span>
+                                        <span><span className={`font-semibold ${d.date < today ? '' : 'text-ink'}`}>{t(d.title)}</span>{d.description && <div className="muted">{t(d.description)}</div>}{d.legal_basis && <div className="muted">{t(d.legal_basis)}</div>}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        )}
+                    </WithFile>
+                </Card>
+            </Band>
         </div>
     );
 }
@@ -36,28 +40,30 @@ export function About() {
     const sources: Source[] = ['registry', 'turnout', 'results'];
     const base = `${env.dataUrl}/${slug}`;
     return (
-        <div className="space-y-6">
-            <PageTitle title="O podacima" />
-            <div className="card space-y-3 text-sm leading-relaxed">
-                <p>{t('Sve što ovaj sajt prikazuje su statički JSON fajlovi koje objavljuje sistem za unos. Svaka objava je nepromenljiva verzija sa sopstvenim manifestom (SHA-256 svakog fajla, vezan za prethodnu objavu), pa se u svakom trenutku može dokazati šta je bilo prikazano.')}</p>
-                <p>{t('U zbir ulaze samo verifikovani zapisnici biračkih odbora koji prolaze kontrolne sume K1–K7. Zapisnici sa odstupanjem su javno vidljivi, ali se ne sabiraju dok ih izborna komisija ne ispravi. Procenat obrađenih biračkih mesta stoji uz svaki agregat.')}</p>
-                <p>{t('Raspodela mandata: D\'Hondt (sistem najvećeg količnika) uz cenzus od 3 % birača koji su glasali; liste nacionalnih manjina učestvuju i ispod cenzusa, a njihovi količnici se uvećavaju za 35 %.')}</p>
-                {site?.methodology_url && <p><a className="link" href={site.methodology_url}>{t('Metodologija i pravni osnov')}</a></p>}
-                {site?.contact_email && <p>{t('Kontakt')}: <a className="link" href={`mailto:${site.contact_email}`}>{site.contact_email}</a></p>}
-            </div>
-            <div className="card text-sm">
-                <h2 className="mb-2">{t('Otvoreni podaci')}</h2>
-                <ul className="space-y-1">
-                    <li><a className="link" href={`${env.dataUrl}/index.json`}>index.json</a> — {t('spisak izbora')}</li>
-                    <li><a className="link" href={`${base}/config.json`}>config.json</a> — {t('tekuće verzije po izvoru')}</li>
-                    {sources.map((s) => config[s] && (
-                        <li key={s}>
-                            <a className="link" href={`${base}/${config[s]}/${s}/manifest.json`}>{s}/manifest.json</a> — {t('verzija')} {config[s]}
-                        </li>
-                    ))}
-                </ul>
-                <p className="muted mt-3">{t('Oblik svih fajlova je dokumentovan u repozitorijumu (docs/DATA-CONTRACT.md). Fajlovi su UTF-8, latinica; ćirilica se dobija transliteracijom na klijentu.')}</p>
-            </div>
+        <div>
+            <PageTitle title="Informacije o podacima" />
+            <Band>
+                <Card className="space-y-3 text-[15px] leading-relaxed">
+                    <p>{t('Sve što ovaj sajt prikazuje su statički JSON fajlovi koje objavljuje sistem za unos. Svaka objava je nepromenljiva verzija sa sopstvenim manifestom (SHA-256 svakog fajla, vezan za prethodnu objavu), pa se u svakom trenutku može dokazati šta je bilo prikazano.')}</p>
+                    <p>{t('U zbir ulaze samo verifikovani zapisnici biračkih odbora koji prolaze kontrolne sume K1 do K7. Zapisnici sa odstupanjem su javno vidljivi, ali se ne sabiraju dok ih izborna komisija ne ispravi. Procenat obrađenih biračkih mesta stoji uz svaki zbir.')}</p>
+                    <p>{t('Raspodela mandata: D\'Hondtov sistem najvećeg količnika uz cenzus od 3 % birača koji su glasali; liste nacionalnih manjina učestvuju i ispod cenzusa, a njihovi količnici se uvećavaju za 35 %.')}</p>
+                    {site?.methodology_url && <p><a className="link" href={site.methodology_url}>{t('Metodologija i pravni osnov')}</a></p>}
+                    {site?.contact_email && <p>{t('Kontakt')}: <a className="link" href={`mailto:${site.contact_email}`}>{site.contact_email}</a></p>}
+                </Card>
+                <Card className="text-sm">
+                    <h2 className="mb-3">{t('Otvoreni podaci')}</h2>
+                    <ul className="space-y-1.5">
+                        <li><a className="link" href={`${env.dataUrl}/index.json`}>index.json</a>: {t('spisak izbora')}</li>
+                        <li><a className="link" href={`${base}/config.json`}>config.json</a>: {t('tekuće verzije po izvoru')}</li>
+                        {sources.map((s) => config[s] && (
+                            <li key={s}>
+                                <a className="link" href={`${base}/${config[s]}/${s}/manifest.json`}>{s}/manifest.json</a>: {t('verzija')} {config[s]}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="muted mt-3">{t('Oblik svih fajlova je dokumentovan u repozitorijumu (docs/DATA-CONTRACT.md). Fajlovi su UTF-8, latinica; ćirilica se dobija transliteracijom na klijentu.')}</p>
+                </Card>
+            </Band>
         </div>
     );
 }

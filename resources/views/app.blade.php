@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
+    <meta name="color-scheme" content="light">
     <title>{{ \App\Models\Setting::get('site_name', config('app.name')) }}</title>
-    <meta name="description" content="Rezultati izbora u realnom vremenu — po biračkom mestu, sa skeniranim zapisnicima i otvorenim podacima.">
+    <meta name="description" content="Rezultati izbora po biračkom mestu, sa skeniranim zapisnicima i otvorenim podacima.">
     <script>
         window.__IZBORI__ = {
             dataUrl: @json(rtrim((string) config('izbori.snapshots.public_url'), '/')),
