@@ -2,8 +2,9 @@
 <html lang="sr-Latn">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#ffffff">
     <title>{{ \App\Models\Setting::get('site_name', config('app.name')) }}</title>
     <meta name="description" content="Rezultati izbora po biračkom mestu, sa skeniranim zapisnicima i otvorenim podacima.">
     <script>

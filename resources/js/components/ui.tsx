@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Meta } from '@/types';
 import { useT } from '@/app/hooks';
 import { dateTime, listColor, num, pct } from '@/lib/format';
@@ -44,7 +44,7 @@ export function RingIndicator({ value, size = 20 }: { value: number; size?: numb
 
 /* ---------- page chrome ---------- */
 
-export function PageTitle({ title, sub, meta, children }: { title: string; sub?: ReactNode; meta?: Meta; children?: ReactNode }) {
+export function PageTitle({ title, sub, meta, showProcessed = true, children }: { title: string; sub?: ReactNode; meta?: Meta; showProcessed?: boolean; children?: ReactNode }) {
     const t = useT();
     return (
         <div className="mb-5">
@@ -54,7 +54,7 @@ export function PageTitle({ title, sub, meta, children }: { title: string; sub?:
                     <h1>{t(title)}</h1>
                     {sub && <div className="muted mt-1">{sub}</div>}
                 </div>
-                {meta?.processed != null && <Processed value={meta.processed} />}
+                {showProcessed && meta?.processed != null && <Processed value={meta.processed} />}
             </div>
             {children}
         </div>
@@ -70,9 +70,9 @@ export function Updated({ meta }: { meta: Meta }) {
 export function Processed({ value, label = 'Obrađeno biračkih mesta' }: { value: number; label?: string }) {
     const t = useT();
     return (
-        <div className="flex items-center gap-2 text-sm text-ink-2">
-            <span>{t(label)}: <b className="text-ink">{pct(value)}</b></span>
-            <RingIndicator value={value} />
+        <div className="t-data flex items-center gap-2 text-ink-2">
+            <RingIndicator value={value} size={18} />
+            <span>{t(label)}: <b className="tabular-nums text-ink">{pct(value)}</b></span>
         </div>
     );
 }
@@ -87,8 +87,18 @@ export function SectionHead({ title, right, className = '' }: { title: string; r
     );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-    return <div className={`card ${className}`}>{children}</div>;
+/**
+ * White card. `evidence` draws the share of polling stations this card's numbers
+ * rest on as a hairline across its top edge: blue while counting, green at 100 %.
+ */
+export function Card({ children, className = '', evidence }: { children: ReactNode; className?: string; evidence?: number | null }) {
+    const style = evidence == null
+        ? undefined
+        : {
+            '--evidence': `${Math.max(0, Math.min(100, evidence))}%`,
+            '--evidence-color': evidence >= 100 ? 'var(--color-ok)' : 'var(--color-primary)',
+        } as CSSProperties;
+    return <div className={`card ${evidence == null ? '' : 'evidence'} ${className}`} style={style}>{children}</div>;
 }
 
 /** Gray full-bleed band that holds the white cards. */
@@ -101,7 +111,7 @@ export function Band({ children, className = '' }: { children: ReactNode; classN
 export function Segmented<T extends string>({ options, value, onChange, label }: { options: Array<{ value: T; label: string }>; value: T; onChange: (v: T) => void; label: string }) {
     const t = useT();
     return (
-        <div className="seg" role="tablist" aria-label={t(label)}>
+        <div className="seg seg-wide" role="tablist" aria-label={t(label)}>
             {options.map((o) => (
                 <button key={o.value} type="button" role="tab" aria-selected={o.value === value} className={`seg-btn ${o.value === value ? 'seg-btn-active' : ''}`} onClick={() => onChange(o.value)}>
                     {t(o.label)}
@@ -135,32 +145,33 @@ export function Donut({ value, label, sub, size = 84 }: { value: number | null |
     const v = Math.max(0, Math.min(100, value ?? 0));
     return (
         <div className="flex items-center gap-4">
-            <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
+            <svg width={size} height={size} viewBox="0 0 40 40" className="shrink-0" aria-hidden="true">
                 <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-track)" strokeWidth="7" />
                 <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-ok)" strokeWidth="7" strokeDasharray={`${(v / 100) * c} ${c}`} transform="rotate(-90 20 20)" />
             </svg>
-            <div>
-                <div className="text-sm text-ink-2">{t(label)}</div>
-                <div className="text-2xl font-bold tabular-nums md:text-[26px]">{pct(value)}</div>
-                {sub && <div className="muted">{sub}</div>}
+            <div className="min-w-0">
+                <div className="t-label text-ink-2">{t(label)}</div>
+                <div className="figure mt-1">{pct(value)}</div>
+                {sub && <div className="muted mt-1">{sub}</div>}
             </div>
         </div>
     );
 }
 
-export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+/** `wide` makes the tile span the full row on a phone, for the headline number. */
+export function Stat({ label, value, sub, wide = false }: { label: string; value: ReactNode; sub?: ReactNode; wide?: boolean }) {
     const t = useT();
     return (
-        <div className="card-flat">
-            <div className="text-sm text-ink-2">{t(label)}</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
-            {sub && <div className="muted mt-1">{sub}</div>}
+        <div className={`card-flat ${wide ? 'col-span-2 sm:col-span-1' : ''}`}>
+            <div className="eyebrow">{t(label)}</div>
+            <div className="figure mt-2">{value}</div>
+            {sub && <div className="muted mt-1.5">{sub}</div>}
         </div>
     );
 }
 
 export function Swatch({ color, index }: { color: string | null | undefined; index: number }) {
-    return <span className="inline-block h-3.5 w-3.5 shrink-0 rounded-sm" style={{ background: listColor(color, index) }} aria-hidden="true" />;
+    return <span className="inline-block h-4 w-4 shrink-0 rounded-sm" style={{ background: listColor(color, index) }} aria-hidden="true" />;
 }
 
 export function Bar({ value, max, color, index, className = '' }: { value: number; max: number; color: string | null | undefined; index: number; className?: string }) {

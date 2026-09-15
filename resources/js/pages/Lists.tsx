@@ -107,26 +107,26 @@ export function ListDetail() {
                         <PageTitle title={`${list.number}. ${list.name}`} meta={summary.meta ?? lists.meta} sub={<span className="flex flex-wrap items-center gap-2"><Swatch color={list.color} index={list.number - 1} />{list.holder_name && <>{t('Nosilac liste')}: {t(list.holder_name)}</>}{list.is_minority && <span className="badge badge-blue">{t('lista nacionalne manjine')}</span>}</span>} />
                         <Band>
                             {row && (
-                                <div className="grid gap-4 sm:grid-cols-3">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                                    <Stat label="Mandata" value={row.seats} sub={row.qualified ? undefined : t('ispod cenzusa')} wide />
                                     <Stat label="Glasova" value={num(row.votes)} />
                                     <Stat label="Udeo važećih glasova" value={pct(row.votes_pct)} />
-                                    <Stat label="Mandata" value={row.seats} sub={row.qualified ? undefined : t('ispod cenzusa')} />
                                 </div>
                             )}
                             <Card>
                                 <h2 className="mb-4">{t('Kandidati')}</h2>
-                                <div className="overflow-x-auto">
-                                    <table className="data min-w-[600px]">
+                                <div className="scroll-x">
+                                    <table className="data stack min-w-full md:min-w-[600px]">
                                         <thead><tr><th className="num">#</th><th>{t('Ime i prezime')}</th><th className="num">{t('Godište')}</th><th>{t('Zanimanje')}</th><th>{t('Prebivalište')}</th><th>{t('Status')}</th></tr></thead>
                                         <tbody>
                                             {list.candidates.map((c) => (
                                                 <tr key={c.position} className={elected.has(c.position) ? 'font-medium' : ''}>
-                                                    <td className="num">{c.position}</td>
-                                                    <td>{t(c.full_name)}</td>
-                                                    <td className="num">{c.birth_year ?? '-'}</td>
-                                                    <td>{t(c.occupation)}</td>
-                                                    <td>{t(c.residence)}</td>
-                                                    <td>{elected.has(c.position) ? <span className="badge badge-green">{t('izabran/a')}</span> : ''}</td>
+                                                    <td className="num drop">{c.position}</td>
+                                                    <td className="lead">{c.position}. {t(c.full_name)}</td>
+                                                    <td className="num" data-label={t('Godište')}>{c.birth_year ?? '-'}</td>
+                                                    <td data-label={t('Zanimanje')}>{t(c.occupation)}</td>
+                                                    <td data-label={t('Prebivalište')}>{t(c.residence)}</td>
+                                                    <td className="wide">{elected.has(c.position) ? <span className="badge badge-green">{t('izabran/a')}</span> : ''}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

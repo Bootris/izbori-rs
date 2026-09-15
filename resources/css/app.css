@@ -7,6 +7,10 @@
 | Vizuelni sistem javnog sajta: svetla tema, institucionalni izgled po uzoru
 | na sajtove izbornih komisija (bela zaglavlja, siva traka sa belim karticama,
 | plave veze, zeleni indikatori obrade). Boje lista dolaze iz podataka.
+|
+| Tipografija je fluidna: svaka veličina je clamp() vezan za širinu ekrana, pa
+| se isti prikaz na telefonu čita krupno, a na monitoru ne raste preko mere.
+| Na telefonu kartice idu od ivice do ivice, jer je svaki piksel širine bitan.
 */
 @theme {
     --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
@@ -18,7 +22,7 @@
     --color-ink-3: #6b7280;
     --color-line: #e5e7eb;
     --color-line-2: #f3f4f6;
-    --color-band: #f3f4f6;
+    --color-band: #eceff5;
     --color-ok: #16a34a;
     --color-ok-soft: #dcfce7;
     --color-warn: #b45309;
@@ -26,7 +30,19 @@
     --color-bad: #b91c1c;
     --color-bad-soft: #fee2e2;
     --color-track: #e5e7eb;
-    --color-dark-pill: #4b5563;
+    --color-dark-pill: #374151;
+
+    /* fluidna tipografska skala: min na 360 px, max na 1280 px */
+    --text-micro: 0.8125rem;
+    --text-label: clamp(0.8125rem, 0.4vw + 0.73rem, 0.875rem);
+    --text-body: clamp(1rem, 0.25vw + 0.94rem, 1.0625rem);
+    --text-data: clamp(0.9375rem, 0.35vw + 0.86rem, 1rem);
+    --text-lead: clamp(1.0625rem, 0.6vw + 0.93rem, 1.1875rem);
+    --text-h3: clamp(1.0625rem, 0.7vw + 0.9rem, 1.25rem);
+    --text-h2: clamp(1.25rem, 1.6vw + 0.89rem, 1.5rem);
+    --text-h1: clamp(1.5rem, 2.6vw + 0.91rem, 1.875rem);
+    --text-figure: clamp(1.75rem, 4.2vw + 0.8rem, 2.25rem);
+    --text-hero: clamp(2.25rem, 6vw + 0.9rem, 3.25rem);
 }
 
 @layer base {
@@ -41,48 +57,109 @@
         --series-6: #0e7490;
         --series-7: #a16207;
         --series-8: #be185d;
+        --gutter: 1rem;
     }
-    html { overflow-x: clip; }
-    body { @apply bg-white text-ink antialiased; font-size: 15px; }
-    h1 { @apply text-2xl font-bold tracking-tight md:text-[28px]; }
-    h2 { @apply text-xl font-bold tracking-tight md:text-[22px]; }
-    h3 { @apply text-base font-semibold; }
+    @media (min-width: 48rem) { :root { --gutter: 1.5rem; } }
+
+    html { overflow-x: clip; -webkit-text-size-adjust: 100%; }
+    body { @apply bg-white text-ink antialiased; font-size: var(--text-body); line-height: 1.55; }
+
+    h1 { font-size: var(--text-h1); @apply font-bold leading-tight tracking-tight; letter-spacing: -0.02em; }
+    h2 { font-size: var(--text-h2); @apply font-bold leading-tight tracking-tight; letter-spacing: -0.015em; }
+    h3 { font-size: var(--text-h3); @apply font-semibold leading-snug; }
     a { @apply underline-offset-2; }
     :focus-visible { @apply outline-2 outline-offset-2 outline-primary; }
     svg text { font-family: var(--font-sans); }
+
+    /* svaka kontrola je najmanje 44 px visoka na dodir */
+    @media (pointer: coarse) {
+        button, [role='tab'], a.tab, select, summary { min-height: 2.75rem; }
+    }
 }
 
 @layer components {
-    .container-x { @apply mx-auto w-full max-w-6xl px-4 md:px-6; }
+    .container-x { @apply mx-auto w-full max-w-6xl; padding-inline: var(--gutter); }
 
     /* full-bleed gray band with white cards (the lower part of every page) */
     .band { background: var(--color-band); margin-inline: calc(50% - 50vw); padding-inline: calc(50vw - 50%); }
 
-    .card { @apply rounded-xl bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.06),0_1px_8px_rgba(17,24,39,0.05)] md:p-6; }
-    .card-flat { @apply rounded-xl border border-line bg-white p-4 md:p-6; }
-    .muted { @apply text-sm text-ink-3; }
+    /*
+    | Kartica. Na telefonu ide preko cele širine ekrana bez uglova, jer bi
+    | unutrašnji razmak kartice udvostručio već postojeći razmak stranice i
+    | pojeo oko 60 px korisne širine.
+    */
+    .card {
+        @apply bg-white;
+        margin-inline: calc(-1 * var(--gutter));
+        padding: 1.125rem var(--gutter);
+        border-block: 1px solid var(--color-line);
+    }
+    .card-flat { @apply rounded-xl border border-line bg-white p-4; }
+
+    @media (min-width: 40rem) {
+        .card {
+            @apply rounded-xl p-5 shadow-[0_1px_2px_rgba(17,24,39,0.06),0_1px_8px_rgba(17,24,39,0.05)] md:p-6;
+            margin-inline: 0;
+            border-block: 0;
+        }
+        .card-flat { @apply p-5 md:p-6; }
+    }
+
+    /*
+    | Potpis sajta: tanka traka na gornjoj ivici kartice koja pokazuje na kolikom
+    | delu prebrojanih biračkih mesta zbir u toj kartici počiva. Plava dok traje
+    | brojanje, puna zelena na 100 %. Ista informacija koja stoji u tekstu, ali
+    | vidljiva i kad se samo prelista stranica.
+    */
+    .evidence { position: relative; }
+    .evidence::before {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        top: 0;
+        height: 3px;
+        background: linear-gradient(to right, var(--evidence-color, var(--color-primary)) var(--evidence, 0%), var(--color-track) var(--evidence, 0%));
+    }
+    @media (min-width: 40rem) { .evidence::before { border-radius: 0.75rem 0.75rem 0 0; } }
+
+    .muted { font-size: var(--text-label); @apply text-ink-3; }
+
+    /* imenovane veličine iz skale, da se ne piše inline style */
+    .t-micro { font-size: var(--text-micro); }
+    .t-label { font-size: var(--text-label); }
+    .t-data { font-size: var(--text-data); }
+    .t-lead { font-size: var(--text-lead); }
     .link { @apply font-medium text-primary no-underline hover:underline; }
     .num { @apply tabular-nums; }
 
+    /* veliki broj zbog kojeg se dolazi na sajt */
+    .figure { font-size: var(--text-figure); @apply font-bold tabular-nums leading-none; letter-spacing: -0.03em; }
+    .figure-hero { font-size: var(--text-hero); @apply font-bold tabular-nums leading-none; letter-spacing: -0.035em; }
+    /* natpis iznad broja: sitan, razmaknut, uvek isti glas */
+    .eyebrow { font-size: var(--text-micro); @apply font-semibold uppercase text-ink-3; letter-spacing: 0.06em; }
+
     /* navigation tabs */
-    .tab { @apply inline-block rounded-md px-3 py-2 text-[15px] font-medium text-primary no-underline hover:bg-line-2; }
+    .tab { font-size: var(--text-data); @apply inline-flex items-center rounded-lg px-3.5 py-2.5 font-medium text-primary no-underline hover:bg-line-2; }
     .tab-active { @apply bg-primary-soft text-primary-dark; }
 
     /* segmented control (dark active pill on a light tray) */
     .seg { @apply inline-flex flex-wrap gap-1 rounded-xl bg-line-2 p-1; }
-    .seg-btn { @apply rounded-lg px-3.5 py-2 text-sm font-medium text-ink-2 hover:text-ink; }
+    .seg-btn { font-size: var(--text-data); @apply rounded-lg px-4 py-2.5 font-medium text-ink-2 hover:text-ink; }
     .seg-btn-active { @apply bg-dark-pill text-white shadow-sm hover:text-white; }
+    /* na uskom ekranu prekidač ide preko cele širine i prelama se u više redova */
+    .seg-wide { @apply flex w-full sm:inline-flex sm:w-auto; }
+    .seg-wide .seg-btn { @apply flex-1 whitespace-nowrap px-3 text-center sm:px-4; min-width: fit-content; }
 
     /* accordion rows */
     .acc { @apply rounded-xl bg-line-2; }
-    .acc-btn { @apply flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3.5 text-left font-semibold hover:bg-line md:px-5; }
-    .acc-body { @apply px-2 pb-3 md:px-3; }
+    .acc-btn { @apply flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left font-semibold hover:bg-line md:px-5; }
+    .acc-body { @apply px-1.5 pb-3 md:px-3; }
 
     /* horizontal bars */
     .bar-track { @apply h-2.5 w-full overflow-hidden rounded-full bg-track; }
     .bar-fill { @apply h-full rounded-full; }
 
-    .badge { @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset; }
+    .badge { font-size: var(--text-micro); @apply inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 font-medium ring-1 ring-inset; }
     .badge-gray { @apply bg-line-2 text-ink-2 ring-line; }
     .badge-green { @apply bg-ok-soft text-green-900 ring-green-200; }
     .badge-red { @apply bg-bad-soft text-red-900 ring-red-200; }
@@ -90,32 +167,103 @@
     .badge-blue { @apply bg-primary-soft text-primary-dark ring-blue-200; }
 
     /* data tables */
-    table.data { @apply w-full border-collapse text-sm; }
-    table.data th { @apply border-b border-line py-2.5 pr-3 text-left text-xs font-bold text-ink-2; }
+    table.data { font-size: var(--text-data); @apply w-full border-collapse; }
+    table.data th { font-size: var(--text-micro); @apply border-b border-line py-2.5 pr-3 text-left font-bold text-ink-2; }
     table.data td { @apply border-b border-line-2 py-3 pr-3 align-middle; }
     table.data tr:last-child td { @apply border-b-0; }
     table.data th.num, table.data td.num { @apply whitespace-nowrap text-right tabular-nums; }
     table.data td.strong { @apply font-semibold; }
 
-    .btn-primary { @apply rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark; }
-    .btn-csv { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink-2 hover:border-primary hover:text-primary; }
+    /*
+    | Na telefonu tabela prestaje da bude tabela. Svaki red postaje kartica sa
+    | nazivom u prvoj liniji i parovima natpis/vrednost ispod, pa nema bočnog
+    | skrolovanja niti kolona od tri znaka.
+    */
+    @media (max-width: 47.99rem) {
+        table.stack, table.stack tbody { display: block; width: 100%; }
+        table.stack thead { @apply sr-only; }
+        /*
+        | Red postaje mreža od dve kolone: naziv levo, glavni broj desno u istoj
+        | liniji, a ostali parovi natpis/vrednost i traka idu preko cele širine
+        | ispod. Tako se svaki red pročita u jednom pogledu.
+        */
+        table.stack tr {
+            @apply grid border-b border-line py-3.5;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
+            column-gap: 1rem;
+        }
+        table.stack tr:last-child { @apply border-b-0 pb-0; }
+        table.stack td { @apply block border-0 py-0 pr-0; grid-column: 1 / -1; }
+        table.stack td[data-label] { @apply mt-1 flex items-baseline justify-between gap-4; }
+        table.stack td[data-label]::before {
+            content: attr(data-label);
+            font-size: var(--text-label);
+            @apply shrink-0 font-medium text-ink-3;
+        }
+        table.stack td.num { @apply text-left; }
+        table.stack td[data-label] > * { @apply text-right; }
+
+        /* naziv reda: leva kolona prve linije */
+        table.stack td.lead { font-size: var(--text-lead); @apply font-semibold leading-snug; grid-column: 1; grid-row: 1; }
+        table.stack td.lead .link { @apply font-semibold; }
+
+        /* glavni broj: desna kolona prve linije, natpis iznad njega */
+        table.stack td.key {
+            font-size: var(--text-figure);
+            @apply mt-0 flex flex-col items-end font-bold leading-none;
+            grid-column: 2;
+            grid-row: 1;
+        }
+        table.stack td.key::before { font-size: var(--text-micro); @apply order-first mb-1 font-medium uppercase text-ink-3; letter-spacing: 0.04em; }
+
+        /* traka ili napomena preko cele širine, bez natpisa */
+        table.stack td.wide { @apply mt-2.5; }
+        table.stack td.wide::before { content: none; }
+
+        /* kolona koja na telefonu ne nosi ništa novo */
+        table.stack td.drop { @apply hidden; }
+    }
+    /* iznad praga za slaganje tabela se ponaša normalno */
+    @media (min-width: 48rem) {
+        table.stack td::before { content: none; }
+    }
+
+    .btn-primary { font-size: var(--text-data); @apply inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:bg-primary-dark; }
+    .btn-csv { font-size: var(--text-label); @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 font-medium text-ink-2 hover:border-primary hover:text-primary; }
 
     /* keyboard users land here first; the link only shows while focused */
     .skip { @apply sr-only; }
-    .skip:focus { @apply not-sr-only fixed left-4 top-4 z-50 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white; }
+    .skip:focus { @apply not-sr-only fixed left-4 top-4 z-50 rounded-lg bg-primary px-4 py-2 font-semibold text-white; }
 
     /* the nav scrolls sideways on narrow screens; the fade says there is more */
     .navfade { -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); }
     @media (min-width: 1100px) { .navfade { -webkit-mask-image: none; mask-image: none; } }
+    .navscroll { scrollbar-width: none; scroll-snap-type: x proximity; }
+    .navscroll::-webkit-scrollbar { display: none; }
+    .navscroll > li { scroll-snap-align: start; }
 
     /* election-night strip under the header */
     .livestrip { @apply sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur; }
-    .pulse-dot { @apply relative inline-flex h-2.5 w-2.5 rounded-full bg-ok; }
+    .pulse-dot { @apply relative inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-ok; }
     .pulse-dot::after { content: ''; @apply absolute inset-0 rounded-full bg-ok opacity-75; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
     @keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .pulse-dot::after { animation: none; } }
 
-    .input { @apply w-full rounded-full border border-line bg-line-2 px-4 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary focus:bg-white; }
-    .select { @apply rounded-md border border-line bg-white px-2.5 py-1.5 text-sm; }
-    .btn-link { @apply text-sm font-medium text-primary hover:underline; }
+    .input { font-size: var(--text-data); @apply w-full rounded-full border border-line bg-line-2 px-4 py-3 text-ink placeholder:text-ink-3 focus:border-primary focus:bg-white; }
+    .select { font-size: var(--text-data); @apply max-w-full rounded-lg border border-line bg-white px-3 py-2; }
+    .btn-link { font-size: var(--text-data); @apply font-medium text-primary hover:underline; }
+
+    /*
+    | Tabela koja mora da ostane tabela (D'Hondt matrica) skroluje u svom okviru.
+    | Na telefonu skrol počinje od ivice ekrana, pa se koristi cela širina.
+    */
+    .scroll-x { @apply overflow-x-auto; overscroll-behavior-x: contain; margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); }
+    @media (min-width: 40rem) { .scroll-x { margin-inline: 0; padding-inline: 0; } }
+
+    /* prva kolona matrice ostaje vidljiva dok se skroluje udesno */
+    table.sticky-col th:first-child, table.sticky-col td:first-child {
+        @apply sticky left-0 z-10 bg-white;
+        box-shadow: 1px 0 0 var(--color-line);
+    }
 }

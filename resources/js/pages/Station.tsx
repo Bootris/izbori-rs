@@ -37,7 +37,7 @@ export function Station() {
             <WithFile state={source} unavailable={t('Podaci još nisu objavljeni.')}>
                 {() => station ? (
                     <>
-                        <PageTitle title={`Biračko mesto ${station.number}: ${station.name}`} meta={protocols.meta ?? stations.meta} sub={<>{station.address && <>{t(station.address)}, </>}{num(station.registered_voters)} {t('upisanih birača')}</>}>
+                        <PageTitle title={`Biračko mesto ${station.number}: ${station.name}`} meta={protocols.meta ?? stations.meta} showProcessed={false} sub={<>{station.address && <>{t(station.address)}, </>}{num(station.registered_voters)} {t('upisanih birača')}</>}>
                             <div className="mt-3 flex flex-wrap items-center gap-3">
                                 <StatusBadge status={station.status} />
                                 <StationTags station={station} />
@@ -54,7 +54,7 @@ export function Station() {
                                     <div className="grid gap-6 md:grid-cols-3">
                                         <Card className="md:col-span-2">
                                             <h2 className="mb-4">{t('Zapisnik biračkog odbora')}</h2>
-                                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
+                                            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
                                                 {([
                                                     ['Upisanih birača', station.registered_voters_protocol],
                                                     ['Primljeno listića', station.ballots_received],
@@ -66,13 +66,13 @@ export function Station() {
                                                     ['Izlaznost', station.turnout_pct === undefined ? undefined : pct(station.turnout_pct)],
                                                     ['Odstupanje (K4)', station.deviation],
                                                 ] as Array<[string, number | string | undefined]>).map(([label, value]) => (
-                                                    <div key={label}><dt className="text-ink-2">{t(label)}</dt><dd className="text-lg font-semibold tabular-nums">{typeof value === 'number' ? num(value) : value ?? '-'}</dd></div>
+                                                    <div key={label}><dt className="eyebrow">{t(label)}</dt><dd className="t-lead mt-1 font-bold tabular-nums">{typeof value === 'number' ? num(value) : value ?? '-'}</dd></div>
                                                 ))}
                                             </dl>
                                         </Card>
                                         <Card>
                                             <h2 className="mb-4">{t('Kontrolne sume')}</h2>
-                                            <ul className="space-y-2 text-sm">
+                                            <ul className="t-data space-y-2.5">
                                                 {controls.map((c) => {
                                                     const err = station.errors?.[c.code];
                                                     return (
@@ -87,31 +87,29 @@ export function Station() {
                                     </div>
                                     <Card>
                                         <h2 className="mb-4">{t('Glasovi po listama')}</h2>
-                                        <div className="overflow-x-auto">
-                                            <table className="data min-w-[560px]">
-                                                <thead><tr><th className="num">#</th><th>{t('Lista')}</th><th className="w-1/3"><span className="sr-only">{t('Udeo')}</span></th><th className="num">{t('Glasova')}</th><th className="num">{t('Udeo')}</th></tr></thead>
-                                                <tbody>
-                                                    {(station.items ?? []).map((it) => {
-                                                        const l = listById.get(it.list_id);
-                                                        const max = Math.max(...(station.items ?? []).map((x) => x.votes), 1);
-                                                        return (
-                                                            <tr key={it.list_id}>
-                                                                <td className="num">{l?.number ?? '-'}.</td>
-                                                                <td><span className="flex items-center gap-2"><Swatch color={l?.color} index={(l?.number ?? 1) - 1} />{l ? <Link className="link" to={`/${slug}/liste/${l.id}`}>{t(l.name)}</Link> : `#${it.list_id}`}</span></td>
-                                                                <td><Bar value={it.votes} max={max} color={l?.color} index={(l?.number ?? 1) - 1} /></td>
-                                                                <td className="num">{num(it.votes)}</td>
-                                                                <td className="num">{pct(it.votes_pct)}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        <table className="data stack">
+                                            <thead><tr><th className="num">#</th><th>{t('Lista')}</th><th className="w-1/3"><span className="sr-only">{t('Udeo')}</span></th><th className="num">{t('Glasova')}</th><th className="num">{t('Udeo')}</th></tr></thead>
+                                            <tbody>
+                                                {(station.items ?? []).map((it) => {
+                                                    const l = listById.get(it.list_id);
+                                                    const max = Math.max(...(station.items ?? []).map((x) => x.votes), 1);
+                                                    return (
+                                                        <tr key={it.list_id}>
+                                                            <td className="num drop">{l?.number ?? '-'}.</td>
+                                                            <td className="lead"><span className="flex items-start gap-2"><span className="mt-1"><Swatch color={l?.color} index={(l?.number ?? 1) - 1} /></span><span className="min-w-0">{l ? <Link className="link" to={`/${slug}/liste/${l.id}`}>{l.number}. {t(l.name)}</Link> : `#${it.list_id}`}</span></span></td>
+                                                            <td className="num key" data-label={t('Glasova')}>{num(it.votes)}</td>
+                                                            <td className="num" data-label={t('Udeo')}>{pct(it.votes_pct)}</td>
+                                                            <td className="wide"><Bar value={it.votes} max={max} color={l?.color} index={(l?.number ?? 1) - 1} /></td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </Card>
                                     <Card>
                                         <h2 className="mb-2">{t('Skenirani zapisnik')}</h2>
                                         {(station.scans?.length ?? 0) === 0 ? <p className="muted">{t('Skenirani zapisnik još nije priložen.')}</p> : (
-                                            <ul className="list-disc pl-5 text-sm">{station.scans?.map((u) => <li key={u}><a className="link" href={u} target="_blank" rel="noreferrer">{u.split('/').pop()}</a></li>)}</ul>
+                                            <ul className="t-data list-disc pl-5">{station.scans?.map((u) => <li key={u}><a className="link" href={u} target="_blank" rel="noreferrer">{u.split('/').pop()}</a></li>)}</ul>
                                         )}
                                     </Card>
                                 </>

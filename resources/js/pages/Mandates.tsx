@@ -28,9 +28,9 @@ export function Mandates() {
         <div>
             <PageTitle title="Raspodela mandata po D'Hondtovom sistemu" meta={unit.meta} sub={t('Količnik je broj glasova podeljen deliocem. Mandate dobija prvih N najvećih količnika; obeleženi su oni koji su osvojili mandat.')} />
             {(units.list?.length ?? 0) > 1 && (
-                <label className="mb-4 flex items-center gap-2 text-sm">
-                    <span className="text-ink-2">{t('Izborna jedinica')}:</span>
-                    <select className="select" value={code} onChange={(e) => setParams({ unit: e.target.value })}>
+                <label className="t-data mb-4 flex items-center gap-2">
+                    <span className="shrink-0 text-ink-2">{t('Izborna jedinica')}:</span>
+                    <select className="select min-w-0 flex-1 sm:flex-none" value={code} onChange={(e) => setParams({ unit: e.target.value })}>
                         {units.list?.map((u) => <option key={u.code} value={u.code}>{t(u.name)}</option>)}
                     </select>
                 </label>
@@ -46,10 +46,11 @@ export function Mandates() {
                         return (
                             <>
                                 <Card>
-                                    <p className="mb-3 text-sm text-ink-2">{t('Cenzus')}: <b className="text-ink">{num(u.allocation.threshold_votes)}</b> {t('glasova')}. {t('Mandata')}: <b className="text-ink">{u.seats ?? '-'}</b>. {t('Lista u raspodeli')}: <b className="text-ink">{qualified.length}</b>.</p>
-                                    {u.allocation.notes.map((n) => <p key={n} className="mb-2 text-sm text-amber-900">{t(n)}</p>)}
-                                    <div className="overflow-x-auto">
-                                        <table className="data">
+                                    <p className="t-data mb-3 text-ink-2">{t('Cenzus')}: <b className="text-ink">{num(u.allocation.threshold_votes)}</b> {t('glasova')}. {t('Mandata')}: <b className="text-ink">{u.seats ?? '-'}</b>. {t('Lista u raspodeli')}: <b className="text-ink">{qualified.length}</b>.</p>
+                                    {u.allocation.notes.map((n) => <p key={n} className="t-data mb-2 text-amber-900">{t(n)}</p>)}
+                                    <p className="muted mb-2 md:hidden">{t('Matrica se pomera levo i desno; kolona delilaca ostaje na mestu.')}</p>
+                                    <div className="scroll-x">
+                                        <table className="data sticky-col">
                                             <thead>
                                                 <tr><th className="num">{t('Delilac')}</th>{qualified.map((l) => <th key={l.list_id}><span className="flex items-center gap-1.5 whitespace-nowrap"><Swatch color={l.color} index={l.number - 1} />{t(l.short_name ?? l.name)}{l.is_minority && !((u.matrix[String(l.list_id)]?.['1'] ?? 0) === l.votes) && <span className="badge badge-blue">1,35</span>}</span></th>)}</tr>
                                                 <tr><th className="num">{t('glasova')}</th>{qualified.map((l) => <th key={l.list_id} className="num">{num(l.votes)}</th>)}</tr>
@@ -86,12 +87,19 @@ export function Mandates() {
                                             ]}
                                         />
                                     } />
-                                    <div className="overflow-x-auto">
-                                        <table className="data min-w-[560px]">
+                                    <div className="scroll-x">
+                                        <table className="data stack min-w-full md:min-w-[560px]">
                                             <thead><tr><th className="num">{t('Mandat')}</th><th>{t('Lista')}</th><th className="num">{t('Delilac')}</th><th className="num">{t('Količnik')}</th><th>{t('Kandidat')}</th></tr></thead>
                                             <tbody>
                                                 {u.seat_rows.map((s) => (
-                                                    <tr key={s.seat_no}><td className="num">{s.seat_no}</td><td><span className="flex items-center gap-2"><Swatch color={s.color} index={s.list_number - 1} />{t(s.list_short_name)}</span></td><td className="num">{s.divisor}</td><td className="num">{num(Math.round(s.quotient))}</td><td>{s.candidate ? `${s.candidate.position}. ${t(s.candidate.full_name)}` : '-'}</td></tr>
+                                                    <tr key={s.seat_no}>
+                                                        <td className="num drop">{s.seat_no}</td>
+                                                        <td className="lead">{s.candidate ? `${s.candidate.position}. ${t(s.candidate.full_name)}` : t('lista nema dovoljno kandidata')}</td>
+                                                        <td className="num key" data-label={t('Mandat')}>{s.seat_no}</td>
+                                                        <td className="wide"><span className="flex items-center gap-2"><Swatch color={s.color} index={s.list_number - 1} />{t(s.list_short_name)}</span></td>
+                                                        <td className="num" data-label={t('Delilac')}>{s.divisor}</td>
+                                                        <td className="num" data-label={t('Količnik')}>{num(Math.round(s.quotient))}</td>
+                                                    </tr>
                                                 ))}
                                             </tbody>
                                         </table>

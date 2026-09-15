@@ -61,24 +61,27 @@ export function Submitters() {
                     } />
                     <WithFile state={submitters} unavailable={t('Registar još nije objavljen.')}>
                         {() => (
-                            <div className="overflow-x-auto">
-                                <table className="data min-w-[680px]">
+                            <div className="scroll-x">
+                                <table className="data stack min-w-full md:min-w-[680px]">
                                     <thead><tr><th>{t('Podnosilac')}</th><th>{t('Tip')}</th><th className="num">{t('Izbornih lista')}</th><th className="num">{t('Kandidata')}</th><th className="num">{t('Glasova')}</th><th className="num">{t('Mandata')}</th></tr></thead>
                                     <tbody>
                                         {rows.map((r) => (
                                             <tr key={r.submitter.id}>
-                                                <td>
-                                                    <span className="flex items-center gap-2.5">
-                                                        <Swatch color={r.submitter.color} index={r.submitter.id} />
-                                                        <Link className="link" to={`/${slug}/podnosioci/${r.submitter.id}`}>{t(r.submitter.name)}</Link>
-                                                        {r.submitter.is_minority && <span className="badge badge-blue">{t('nacionalna manjina')}</span>}
+                                                <td className="lead">
+                                                    <span className="flex items-start gap-2.5">
+                                                        <span className="mt-1"><Swatch color={r.submitter.color} index={r.submitter.id} /></span>
+                                                        <span className="min-w-0">
+                                                            <Link className="link" to={`/${slug}/podnosioci/${r.submitter.id}`}>{t(r.submitter.name)}</Link>
+                                                            {r.submitter.is_minority && <span className="badge badge-blue ml-2 align-middle">{t('nacionalna manjina')}</span>}
+                                                            <span className="muted block font-normal md:hidden">{t(TYPE_LABEL[r.submitter.type] ?? r.submitter.type)}</span>
+                                                        </span>
                                                     </span>
                                                 </td>
-                                                <td>{t(TYPE_LABEL[r.submitter.type] ?? r.submitter.type)}</td>
-                                                <td className="num">{r.lists.length}</td>
-                                                <td className="num">{num(r.candidates)}</td>
-                                                <td className="num">{num(r.votes)}</td>
-                                                <td className="num strong">{r.seats}</td>
+                                                <td className="num strong key" data-label={t('Mandata')}>{r.seats}</td>
+                                                <td className="drop">{t(TYPE_LABEL[r.submitter.type] ?? r.submitter.type)}</td>
+                                                <td className="num" data-label={t('Glasova')}>{num(r.votes)}</td>
+                                                <td className="num" data-label={t('Izbornih lista')}>{r.lists.length}</td>
+                                                <td className="num" data-label={t('Kandidata')}>{num(r.candidates)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -120,28 +123,28 @@ export function Submitter() {
                             sub={<span className="flex flex-wrap items-center gap-2"><Swatch color={submitter.color} index={submitter.id} />{t(TYPE_LABEL[submitter.type] ?? submitter.type)}{submitter.is_minority && <span className="badge badge-blue">{t('podnosilac liste nacionalne manjine')}</span>}</span>}
                         />
                         <Band>
-                            <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                                <Stat label="Mandata" value={seats} wide />
                                 <Stat label="Glasova" value={num(votes)} />
-                                <Stat label="Mandata" value={seats} />
                                 <Stat label="Kandidata na listama" value={num(candidates)} />
                             </div>
                             <Card>
                                 <h2 className="mb-4">{own.length === 1 ? t('Izborna lista') : t('Izborne liste')}</h2>
-                                <div className="overflow-x-auto">
-                                    <table className="data min-w-[600px]">
+                                <div className="scroll-x">
+                                    <table className="data stack min-w-full md:min-w-[600px]">
                                         <thead><tr><th className="num">#</th><th>{t('Lista')}</th><th>{t('Nosilac')}</th><th className="num">{t('Kandidata')}</th><th className="num">{t('Glasova')}</th><th className="num">{t('Udeo')}</th><th className="num">{t('Mandata')}</th></tr></thead>
                                         <tbody>
                                             {own.map((l) => {
                                                 const r = results.get(l.id);
                                                 return (
                                                     <tr key={l.id}>
-                                                        <td className="num">{l.number}.</td>
-                                                        <td><Link className="link" to={`/${slug}/liste/${l.id}`}>{t(l.name)}</Link></td>
-                                                        <td>{t(l.holder_name)}</td>
-                                                        <td className="num">{l.candidates.length}</td>
-                                                        <td className="num">{num(r?.votes)}</td>
-                                                        <td className="num">{r ? pct(r.votes_pct) : '-'}</td>
-                                                        <td className="num strong">{r?.seats ?? '-'}</td>
+                                                        <td className="num drop">{l.number}.</td>
+                                                        <td className="lead"><Link className="link" to={`/${slug}/liste/${l.id}`}>{l.number}. {t(l.name)}</Link><span className="muted block font-normal">{t(l.holder_name)}</span></td>
+                                                        <td className="num strong key" data-label={t('Mandata')}>{r?.seats ?? '-'}</td>
+                                                        <td className="drop">{t(l.holder_name)}</td>
+                                                        <td className="num" data-label={t('Glasova')}>{num(r?.votes)}</td>
+                                                        <td className="num" data-label={t('Udeo')}>{r ? pct(r.votes_pct) : '-'}</td>
+                                                        <td className="num" data-label={t('Kandidata')}>{l.candidates.length}</td>
                                                     </tr>
                                                 );
                                             })}

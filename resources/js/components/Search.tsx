@@ -67,7 +67,7 @@ export function Search() {
     let lastGroup = '';
 
     return (
-        <div ref={box} className="relative w-full md:w-72">
+        <div ref={box} className="relative w-full">
             <label className="sr-only" htmlFor="site-search">{t('Pretraga opštine, liste ili kandidata')}</label>
             <input
                 id="site-search"

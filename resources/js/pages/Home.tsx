@@ -9,7 +9,7 @@ import { ListResults } from '@/components/ListResults';
 import { Hemicycle } from '@/components/Hemicycle';
 import { DistrictAccordion } from '@/components/DistrictAccordion';
 import { CsvButton } from '@/components/Csv';
-import { Band, Card, Donut, IconArrow, Processed, ResultStatusNote, RingIndicator, SectionHead, Segmented, Swatch, Updated } from '@/components/ui';
+import { Band, Card, Donut, IconArrow, Processed, ResultStatusNote, RingIndicator, SectionHead, Segmented, Swatch } from '@/components/ui';
 
 type ListTab = 'sve' | 'manjinske' | 'inostranstvo';
 
@@ -29,7 +29,6 @@ export function Home() {
     const [listTab, setListTab] = useState<ListTab>('sve');
 
     const lastTurnout = turnout.list?.filter((c) => c.voters_voted !== null).at(-1);
-    const meta = summary.meta ?? info.meta;
     const d = summary.item;
     const single: UnitSummary | undefined = d && d.units.length === 1 ? d.units[0] : undefined;
     const isProportional = election.type !== 'presidential';
@@ -40,8 +39,6 @@ export function Home() {
 
     return (
         <div>
-            {meta && <Updated meta={meta} />}
-
             <SectionHead title={isProportional ? 'Osvojeni mandati' : 'Rezultati'} right={d && <Processed value={d.processed} />} />
 
             {!summary.available && (
@@ -60,28 +57,30 @@ export function Home() {
                         return (
                             <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
                                 <Hemicycle total={c.seats_total} byList={c.by_list} empty={c.seats_empty} />
-                                <div className="overflow-x-auto">
-                                    <table className="data md:min-w-[520px]">
-                                        <thead><tr><th>{t('Izborna lista')}</th><th className="num">{t('Glasova')}</th><th className="num">{t('Mandata')}</th><th className="hidden w-[22%] md:table-cell"><span className="sr-only">{t('Udeo mandata')}</span></th><th className="hidden md:table-cell"><span className="sr-only">{t('Poslanici')}</span></th></tr></thead>
+                                <div>
+                                    <table className="data stack">
+                                        <thead><tr><th>{t('Izborna lista')}</th><th className="num">{t('Mandata')}</th><th className="num">{t('Glasova')}</th><th className="w-[22%]"><span className="sr-only">{t('Udeo mandata')}</span></th></tr></thead>
                                         <tbody>
                                             {winning.map((l, i) => (
                                                 <tr key={`${l.name}-${i}`}>
-                                                    <td>
-                                                        <span className="flex items-center gap-2.5">
-                                                            <Swatch color={l.color} index={i} />
-                                                            {l.list_ids[0] !== undefined ? <Link className="link" to={`/${slug}/liste/${l.list_ids[0]}`}>{t(l.short_name ?? l.name)}</Link> : t(l.short_name ?? l.name)}
-                                                            {l.is_minority && <span className="badge badge-blue">{t('manjinska')}</span>}
+                                                    <td className="lead">
+                                                        <span className="flex items-start gap-2.5">
+                                                            <span className="mt-1"><Swatch color={l.color} index={i} /></span>
+                                                            <span className="min-w-0">
+                                                                {l.list_ids[0] !== undefined ? <Link className="link" to={`/${slug}/liste/${l.list_ids[0]}`}>{t(l.name)}</Link> : t(l.name)}
+                                                                {l.is_minority && <span className="badge badge-blue ml-2 align-middle">{t('manjinska')}</span>}
+                                                            </span>
                                                         </span>
                                                     </td>
-                                                    <td className="num">{num(l.votes)}</td>
-                                                    <td className="num strong">{l.seats}</td>
-                                                    <td className="hidden md:table-cell"><div className="bar-track"><div className="bar-fill" style={{ width: `${(l.seats / maxSeats) * 100}%`, background: listColor(l.color, i) }} /></div></td>
-                                                    <td className="hidden md:table-cell"><Link className="link inline-flex items-center gap-1 whitespace-nowrap" to={`/${slug}/skupstina`}>{t('Poslanici')} <IconArrow /></Link></td>
+                                                    <td className="num strong key" data-label={t('Mandata')}>{l.seats}</td>
+                                                    <td className="num" data-label={t('Glasova')}>{num(l.votes)}</td>
+                                                    <td className="wide"><div className="bar-track"><div className="bar-fill" style={{ width: `${(l.seats / maxSeats) * 100}%`, background: listColor(l.color, i) }} /></div></td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                     {c.seats_empty > 0 && <p className="muted mt-2">{num(c.seats_empty)} {t('mandata još nije raspodeljeno.')}</p>}
+                                    <Link className="link mt-4 inline-flex items-center gap-1.5" to={`/${slug}/skupstina`}>{t('Poimenični sastav skupštine')} <IconArrow /></Link>
                                 </div>
                             </div>
                         );
@@ -101,7 +100,7 @@ export function Home() {
 
             <Band className="mt-10">
                 {single && (
-                    <Card>
+                    <Card evidence={single.processed}>
                         <SectionHead title="Rezultati glasanja po listama" right={
                             <span className="flex flex-wrap items-center gap-4">
                                 <Processed value={single.processed} label="Obrađeno" />
@@ -143,19 +142,19 @@ export function Home() {
                 )}
 
                 {d && d.units.length > 1 && (
-                    <Card>
+                    <Card evidence={d.processed}>
                         <SectionHead title="Izborne jedinice" />
-                        <div className="overflow-x-auto">
-                            <table className="data">
+                        <div className="scroll-x">
+                            <table className="data stack">
                                 <thead><tr><th>{t('Jedinica')}</th><th className="num">{t('Obrađeno')}</th><th>{t('Vodi')}</th><th className="num">%</th><th className="num">{t('Razlika')}</th></tr></thead>
                                 <tbody>
                                     {(winners.list ?? []).map((w) => (
                                         <tr key={w.unit_code}>
-                                            <td><Link className="link" to={`/${slug}/mandati?unit=${w.unit_code}`}>{t(w.unit_name)}</Link></td>
-                                            <td className="num"><span className="inline-flex items-center gap-1.5">{pct(w.processed)}<RingIndicator value={w.processed} size={16} /></span></td>
-                                            <td>{w.leader ? t(w.leader.name) : '-'}</td>
-                                            <td className="num">{w.leader ? pct(w.leader.votes_pct) : '-'}</td>
-                                            <td className="num">{w.margin_pct === null ? '-' : pct(w.margin_pct)}</td>
+                                            <td className="lead"><Link className="link" to={`/${slug}/mandati?unit=${w.unit_code}`}>{t(w.unit_name)}</Link></td>
+                                            <td className="num" data-label={t('Obrađeno')}><span className="inline-flex items-center gap-1.5">{pct(w.processed)}<RingIndicator value={w.processed} size={16} /></span></td>
+                                            <td data-label={t('Vodi')}>{w.leader ? t(w.leader.name) : '-'}</td>
+                                            <td className="num key" data-label={t('Udeo vodeće liste')}>{w.leader ? pct(w.leader.votes_pct) : '-'}</td>
+                                            <td className="num" data-label={t('Razlika')}>{w.margin_pct === null ? '-' : pct(w.margin_pct)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -164,7 +163,7 @@ export function Home() {
                     </Card>
                 )}
 
-                <Card>
+                <Card evidence={d?.processed}>
                     <SectionHead title="Rezultati po okruzima" right={<Link className="link inline-flex items-center gap-1" to={`/${slug}/teritorija`}>{t('Mapa rezultata')} <IconArrow /></Link>} />
                     <WithFile state={districts} unavailable={t('Registar još nije objavljen.')}>
                         {({ list }) => <DistrictAccordion districts={list.filter((x) => x.stations > 0)} slug={slug} />}

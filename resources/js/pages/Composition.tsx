@@ -7,7 +7,7 @@ import { num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
 import { Hemicycle } from '@/components/Hemicycle';
 import { CsvButton } from '@/components/Csv';
-import { Band, Card, Processed, SectionHead, Swatch, Updated } from '@/components/ui';
+import { Band, Card, Processed, SectionHead, Swatch } from '@/components/ui';
 
 export function Composition() {
     const { slug } = useElection();
@@ -17,23 +17,22 @@ export function Composition() {
 
     return (
         <div>
-            {file.meta && <Updated meta={file.meta} />}
             <SectionHead title="Sastav Narodne skupštine" right={file.meta?.processed != null && <Processed value={file.meta.processed} />} />
             <WithFile state={file} unavailable={t('Rezultati još nisu objavljeni.')}>
                 {({ data: c }) => (
                     <>
                         <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
                             <Hemicycle total={c.seats_total} byList={c.by_list} empty={c.seats_empty} />
-                            <div className="overflow-x-auto">
-                                <table className="data min-w-[460px]">
+                            <div>
+                                <table className="data stack">
                                     <thead><tr><th>{t('Izborna lista')}</th><th className="num">{t('Mandata')}</th><th className="num">{t('Udeo')}</th><th className="num">{t('Glasova')}</th></tr></thead>
                                     <tbody>
                                         {c.by_list.map((l, i) => (
                                             <tr key={`${l.name}-${i}`}>
-                                                <td><span className="flex items-center gap-2.5"><Swatch color={l.color} index={i} />{l.list_ids[0] !== undefined ? <Link className="link" to={`/${slug}/liste/${l.list_ids[0]}`}>{t(l.name)}</Link> : t(l.name)}{l.is_minority && <span className="badge badge-blue">{t('manjinska')}</span>}</span></td>
-                                                <td className="num strong">{l.seats}</td>
-                                                <td className="num">{pct(l.seats_pct)}</td>
-                                                <td className="num">{num(l.votes)}</td>
+                                                <td className="lead"><span className="flex items-start gap-2.5"><span className="mt-1"><Swatch color={l.color} index={i} /></span><span className="min-w-0">{l.list_ids[0] !== undefined ? <Link className="link" to={`/${slug}/liste/${l.list_ids[0]}`}>{t(l.name)}</Link> : t(l.name)}{l.is_minority && <span className="badge badge-blue ml-2 align-middle">{t('manjinska')}</span>}</span></span></td>
+                                                <td className="num strong key" data-label={t('Mandata')}>{l.seats}</td>
+                                                <td className="num" data-label={t('Udeo mandata')}>{pct(l.seats_pct)}</td>
+                                                <td className="num" data-label={t('Glasova')}>{num(l.votes)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -61,7 +60,7 @@ export function Composition() {
                                             { label: 'Količnik', value: (x) => Math.round(x.quotient) },
                                         ]}
                                     />
-                                    <label className="flex items-center gap-2 text-sm">
+                                    <label className="t-data flex items-center gap-2">
                                         <span className="text-ink-2">{t('Lista')}:</span>
                                         <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
                                             <option value="">{t('sve liste')}</option>
@@ -70,17 +69,18 @@ export function Composition() {
                                     </label>
                                     </span>
                                 } />
-                                <div className="overflow-x-auto">
-                                    <table className="data min-w-[640px]">
+                                <div className="scroll-x">
+                                    <table className="data stack min-w-full md:min-w-[640px]">
                                         <thead><tr><th className="num">{t('Mandat')}</th><th>{t('Poslanik')}</th><th>{t('Lista')}</th><th className="num">{t('Mesto na listi')}</th><th className="num">{t('Količnik')}</th></tr></thead>
                                         <tbody>
                                             {c.seats.filter((s) => !filter || s.list_short_name === filter).map((s) => (
                                                 <tr key={`${s.unit_code}-${s.seat_no}`}>
-                                                    <td className="num">{s.seat_no}</td>
-                                                    <td>{s.candidate ? <><span className="font-medium">{t(s.candidate.full_name)}</span><div className="muted">{[s.candidate.birth_year, t(s.candidate.occupation ?? ''), t(s.candidate.residence ?? '')].filter(Boolean).join(', ')}</div></> : <span className="muted">{t('lista nema dovoljno kandidata')}</span>}</td>
-                                                    <td><span className="flex items-center gap-2"><Swatch color={s.color} index={s.list_number - 1} />{t(s.list_short_name)}{c.seats.some((x) => x.unit_code !== s.unit_code) && <span className="muted">({s.unit_code})</span>}</span></td>
-                                                    <td className="num">{s.candidate?.position ?? '-'}</td>
-                                                    <td className="num">{num(Math.round(s.quotient))}</td>
+                                                    <td className="num drop">{s.seat_no}</td>
+                                                    <td className="lead">{s.candidate ? <><span>{t(s.candidate.full_name)}</span><div className="muted font-normal">{[s.candidate.birth_year, t(s.candidate.occupation ?? ''), t(s.candidate.residence ?? '')].filter(Boolean).join(', ')}</div></> : <span className="muted">{t('lista nema dovoljno kandidata')}</span>}</td>
+                                                    <td className="num key" data-label={t('Mandat')}>{s.seat_no}</td>
+                                                    <td className="wide"><span className="flex items-center gap-2"><Swatch color={s.color} index={s.list_number - 1} />{t(s.list_short_name)}{c.seats.some((x) => x.unit_code !== s.unit_code) && <span className="muted">({s.unit_code})</span>}</span></td>
+                                                    <td className="num" data-label={t('Mesto na listi')}>{s.candidate?.position ?? '-'}</td>
+                                                    <td className="num" data-label={t('Količnik')}>{num(Math.round(s.quotient))}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

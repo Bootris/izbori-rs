@@ -22,7 +22,7 @@ export function DistrictAccordion({ districts, slug }: { districts: District[]; 
                         title={<Link className="link text-ink hover:text-primary" to={`/${slug}/teritorija/${d.code}`} onClick={(e) => e.stopPropagation()}>{t(d.name)}</Link>}
                         right={
                             <span className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
-                                {leader && <span className="hidden items-center gap-1.5 sm:flex"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span>}
+                                {leader && <span className="flex items-center gap-1.5"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span>}
                                 {r && r.stations_total > 0 && <span className="hidden text-ink-3 md:inline">{t('izlaznost')} {pct(r.turnout_pct)}</span>}
                                 {r && r.stations_total > 0
                                     ? <span className="inline-flex items-center gap-1.5">{pct(r.processed)}<RingIndicator value={r.processed} size={16} /></span>
@@ -44,8 +44,8 @@ export function MunicipalityTable({ district, slug }: { district: District; slug
     const municipalities = useSnapshotList<Municipality>('registry', 'municipalities.json');
     if (district.stations === 0) return <p className="muted px-3 py-2">{t('Nema biračkih mesta u ovom skupu podataka.')}</p>;
     return (
-        <div className="overflow-x-auto rounded-lg bg-white">
-            <table className="data min-w-[560px]">
+        <div className="rounded-lg bg-white px-3 md:px-0">
+            <table className="data stack">
                 <thead>
                     <tr><th className="pl-3">{t('Opština')}</th><th className="num">{t('Obrađeno')}</th><th className="num">{t('Izlaznost')}</th><th>{t('Vodeća lista')}</th></tr>
                 </thead>
@@ -64,10 +64,10 @@ function MunicipalityRow({ m, slug }: { m: Municipality; slug: string }) {
     const leader = r ? leaderOf(r.lists) : undefined;
     return (
         <tr>
-            <td className="pl-3"><Link className="link" to={`/${slug}/teritorija/${m.district_code}/${m.code}`}>{t(m.name)}</Link><div className="muted">{num(m.stations)} {t('biračkih mesta')}</div></td>
-            <td className="num">{r ? <span className="inline-flex items-center gap-1.5">{pct(r.processed)}<RingIndicator value={r.processed} size={16} /></span> : '-'}</td>
-            <td className="num">{r ? pct(r.turnout_pct) : '-'}</td>
-            <td>{leader ? <span className="inline-flex items-center gap-2"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span> : <span className="muted">{r ? t('nema obrađenih zapisnika') : ''}</span>}</td>
+            <td className="lead md:pl-3"><Link className="link" to={`/${slug}/teritorija/${m.district_code}/${m.code}`}>{t(m.name)}</Link><div className="muted font-normal">{num(m.stations)} {t('biračkih mesta')}</div></td>
+            <td className="num" data-label={t('Obrađeno')}>{r ? <span className="inline-flex items-center gap-1.5">{pct(r.processed)}<RingIndicator value={r.processed} size={16} /></span> : '-'}</td>
+            <td className="num" data-label={t('Izlaznost')}>{r ? pct(r.turnout_pct) : '-'}</td>
+            <td data-label={t('Vodeća lista')}>{leader ? <span className="inline-flex items-center gap-2"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span> : <span className="muted">{r ? t('nema obrađenih zapisnika') : ''}</span>}</td>
         </tr>
     );
 }

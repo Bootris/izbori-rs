@@ -54,7 +54,7 @@ export function Territory() {
             <PageTitle title="Rezultati po teritoriji" meta={results.meta ?? districts.meta} sub={t('Okrug, opština, biračko mesto, zapisnik. Kliknite okrug na mapi ili u tabeli.')} />
             <div className="mb-5"><Segmented options={[{ value: 'lista' as Metric, label: 'Vodeća lista' }, { value: 'izlaznost' as Metric, label: 'Izlaznost' }, { value: 'obradjeno' as Metric, label: 'Obrađenost' }]} value={metric} onChange={setMetric} label="Prikaz na mapi" /></div>
             <Band>
-                <Card>
+                <Card evidence={results.meta?.processed}>
                     <SectionHead title={metricLabel} right={results.meta?.processed != null && <Processed value={results.meta.processed} />} />
                     <DistrictMap entries={entries} names={names} valueLabel={metricLabel} legend={legend} onSelect={(code) => navigate(`/${slug}/teritorija/${code}`)} />
                     <p className="muted mt-2 text-center">{t('Okruzi bez biračkih mesta u ovom skupu podataka su sivi.')} {t('Granice')}: geoBoundaries (ODbL).</p>
@@ -80,8 +80,8 @@ export function Territory() {
                     } />
                     <WithFile state={districts} unavailable={t('Registar još nije objavljen.')}>
                         {({ list }) => (
-                            <div className="overflow-x-auto">
-                                <table className="data min-w-[720px]">
+                            <div className="scroll-x">
+                                <table className="data stack min-w-full md:min-w-[720px]">
                                     <thead><tr><th>{t('Okrug')}</th><th className="num">{t('Opština')}</th><th className="num">{t('Biračkih mesta')}</th><th className="num">{t('Upisanih birača')}</th><th className="num">{t('Obrađeno')}</th><th className="num">{t('Izlaznost')}</th><th>{t('Vodeća lista')}</th></tr></thead>
                                     <tbody>
                                         {list.map((d) => {
@@ -89,13 +89,13 @@ export function Territory() {
                                             const leader = leaders.get(d.code);
                                             return (
                                                 <tr key={d.code}>
-                                                    <td><Link className="link" to={`/${slug}/teritorija/${d.code}`}>{t(d.name)}</Link></td>
-                                                    <td className="num">{d.municipalities}</td>
-                                                    <td className="num">{num(d.stations)}</td>
-                                                    <td className="num">{num(d.registered_voters)}</td>
-                                                    <td className="num">{r ? <span className="inline-flex items-center gap-1.5">{pct(r.processed)}<RingIndicator value={r.processed} size={16} /></span> : '-'}</td>
-                                                    <td className="num">{r ? pct(r.turnout_pct) : '-'}</td>
-                                                    <td>{leader ? <span className="inline-flex items-center gap-2"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span> : <span className="muted">{d.stations === 0 ? t('nema biračkih mesta') : t('nema obrađenih zapisnika')}</span>}</td>
+                                                    <td className="lead"><Link className="link" to={`/${slug}/teritorija/${d.code}`}>{t(d.name)}</Link></td>
+                                                    <td className="num key" data-label={t('Obrađeno')}>{r ? <span className="inline-flex items-center gap-1.5">{pct(r.processed)}<RingIndicator value={r.processed} size={16} /></span> : '-'}</td>
+                                                    <td data-label={t('Vodeća lista')}>{leader ? <span className="inline-flex items-center gap-2"><Swatch color={leader.color} index={leader.number - 1} />{t(shortName(leader.name, leader.short_name))} <span className="text-ink-3">{pct(leader.votes_pct)}</span></span> : <span className="muted">{d.stations === 0 ? t('nema biračkih mesta') : t('nema obrađenih zapisnika')}</span>}</td>
+                                                    <td className="num" data-label={t('Izlaznost')}>{r ? pct(r.turnout_pct) : '-'}</td>
+                                                    <td className="num" data-label={t('Biračkih mesta')}>{num(d.stations)}</td>
+                                                    <td className="num" data-label={t('Upisanih birača')}>{num(d.registered_voters)}</td>
+                                                    <td className="num drop" data-label={t('Opština')}>{d.municipalities}</td>
                                                 </tr>
                                             );
                                         })}
@@ -126,13 +126,13 @@ export function TerritoryDistrict() {
             <Band>
                 {r && r.stations_total > 0 && (
                     <>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="card-flat"><Donut value={r.turnout_pct} label="Izlaznost" sub={<>{num(r.voters_voted)} {t('od')} {num(r.registered_voters)}</>} size={72} /></div>
-                            <div className="card-flat"><div className="text-sm text-ink-2">{t('Obrađeno biračkih mesta')}</div><div className="mt-1 text-2xl font-bold tabular-nums">{num(r.stations_verified)} / {num(r.stations_total)}</div><div className="mt-2"><Processed value={r.processed} label="Obrađeno" /></div></div>
-                            <div className="card-flat"><div className="text-sm text-ink-2">{t('Važećih listića')}</div><div className="mt-1 text-2xl font-bold tabular-nums">{num(r.ballots_valid)}</div><div className="muted mt-1">{num(r.ballots_invalid)} {t('nevažećih')} ({pct(r.invalid_pct)})</div></div>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+                            <div className="card-flat col-span-2 md:col-span-1"><Donut value={r.turnout_pct} label="Izlaznost" sub={<>{num(r.voters_voted)} {t('od')} {num(r.registered_voters)}</>} size={72} /></div>
+                            <div className="card-flat"><div className="eyebrow">{t('Obrađeno biračkih mesta')}</div><div className="figure mt-2">{num(r.stations_verified)} / {num(r.stations_total)}</div><div className="mt-2"><Processed value={r.processed} label="Obrađeno" /></div></div>
+                            <div className="card-flat"><div className="eyebrow">{t('Važećih listića')}</div><div className="figure mt-2">{num(r.ballots_valid)}</div><div className="muted mt-1.5">{num(r.ballots_invalid)} {t('nevažećih')} ({pct(r.invalid_pct)})</div></div>
                         </div>
                         {r.lists.length > 0 && (
-                            <Card>
+                            <Card evidence={r.processed}>
                                 <SectionHead title="Rezultati glasanja po listama" right={
                                     <CsvButton
                                         filename={`rezultati-okrug-${district}-${slug}`}
@@ -181,12 +181,12 @@ export function TerritoryMunicipality() {
             <Band>
                 {results.available && r && (
                     <>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="card-flat"><Donut value={r.turnout_pct} label="Izlaznost" sub={<>{num(r.voters_voted)} {t('od')} {num(r.registered_voters)}</>} size={72} /></div>
-                            <div className="card-flat"><div className="text-sm text-ink-2">{t('Obrađeno biračkih mesta')}</div><div className="mt-1 text-2xl font-bold tabular-nums">{r.stations_verified} / {r.stations_total}</div><div className="mt-2"><Processed value={r.processed} label="Obrađeno" /></div></div>
-                            <div className="card-flat"><div className="text-sm text-ink-2">{t('Važećih listića')}</div><div className="mt-1 text-2xl font-bold tabular-nums">{num(r.ballots_valid)}</div><div className="muted mt-1">{num(r.ballots_invalid)} {t('nevažećih')} ({pct(r.invalid_pct)})</div></div>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+                            <div className="card-flat col-span-2 md:col-span-1"><Donut value={r.turnout_pct} label="Izlaznost" sub={<>{num(r.voters_voted)} {t('od')} {num(r.registered_voters)}</>} size={72} /></div>
+                            <div className="card-flat"><div className="eyebrow">{t('Obrađeno biračkih mesta')}</div><div className="figure mt-2">{r.stations_verified} / {r.stations_total}</div><div className="mt-2"><Processed value={r.processed} label="Obrađeno" /></div></div>
+                            <div className="card-flat"><div className="eyebrow">{t('Važećih listića')}</div><div className="figure mt-2">{num(r.ballots_valid)}</div><div className="muted mt-1.5">{num(r.ballots_invalid)} {t('nevažećih')} ({pct(r.invalid_pct)})</div></div>
                         </div>
-                        <Card>
+                        <Card evidence={r.processed}>
                             <SectionHead title="Rezultati glasanja po listama" right={
                                 <CsvButton
                                     filename={`rezultati-${district}-${municipality}-${slug}`}
@@ -224,19 +224,19 @@ export function TerritoryMunicipality() {
                         />
                     } />
                     {rows.length === 0 ? <p className="muted">{t('Nema podataka.')}</p> : (
-                        <div className="overflow-x-auto">
-                            <table className="data min-w-[760px]">
+                        <div className="scroll-x">
+                            <table className="data stack min-w-full md:min-w-[760px]">
                                 <thead><tr><th className="num">{t('BM')}</th><th>{t('Naziv i adresa')}</th><th className="num">{t('Upisano')}</th><th className="num">{t('Glasalo')}</th><th className="num">{t('Izlaznost')}</th><th className="num">{t('Odstupanje')}</th><th>{t('Status')}</th></tr></thead>
                                 <tbody>
                                     {rows.map((s) => (
                                         <tr key={s.station_id}>
-                                            <td className="num"><Link className="link" to={`/${slug}/biracko-mesto/${s.station_id}`}>{s.number}</Link></td>
-                                            <td>{t(s.name)}{s.address && <div className="muted">{t(s.address)}</div>}<StationTags station={s} /></td>
-                                            <td className="num">{num(s.registered_voters)}</td>
-                                            <td className="num">{num(s.voters_voted)}</td>
-                                            <td className="num">{s.turnout_pct === undefined ? '-' : pct(s.turnout_pct)}</td>
-                                            <td className={`num ${s.deviation ? 'font-semibold text-bad' : ''}`}>{s.deviation === undefined ? '-' : s.deviation}</td>
-                                            <td><StatusBadge status={s.status} /></td>
+                                            <td className="num drop"><Link className="link" to={`/${slug}/biracko-mesto/${s.station_id}`}>{s.number}</Link></td>
+                                            <td className="lead"><Link className="link" to={`/${slug}/biracko-mesto/${s.station_id}`}>{s.number}. {t(s.name)}</Link>{s.address && <div className="muted font-normal">{t(s.address)}</div>}<StationTags station={s} /></td>
+                                            <td className="wide"><StatusBadge status={s.status} /></td>
+                                            <td className="num" data-label={t('Izlaznost')}>{s.turnout_pct === undefined ? '-' : pct(s.turnout_pct)}</td>
+                                            <td className="num" data-label={t('Glasalo')}>{num(s.voters_voted)}</td>
+                                            <td className="num" data-label={t('Upisano')}>{num(s.registered_voters)}</td>
+                                            <td className={`num ${s.deviation ? 'font-semibold text-bad' : ''}`} data-label={t('Odstupanje')}>{s.deviation === undefined ? '-' : s.deviation}</td>
                                         </tr>
                                     ))}
                                 </tbody>
