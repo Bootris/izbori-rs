@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useElection } from '@/app/election-context';
 import { useSnapshotData, useSnapshotList, useT } from '@/app/hooks';
-import type { CloseRace, Composition, District, DistrictTurnout, ElectionInfo, Municipality, MunicipalityResults, ResultsSummary, TurnoutCutoff, UnitSummary, Winner } from '@/types';
+import type { CloseRace, Composition, District, ElectionInfo, Municipality, MunicipalityResults, ResultsSummary, TurnoutCutoff, UnitSummary, Winner } from '@/types';
 import { listColor, num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
 import { ListResults } from '@/components/ListResults';
 import { Hemicycle } from '@/components/Hemicycle';
 import { DistrictAccordion } from '@/components/DistrictAccordion';
-import { Band, Card, Donut, IconArrow, Processed, RingIndicator, SectionHead, Segmented, Swatch, Updated } from '@/components/ui';
+import { CsvButton } from '@/components/Csv';
+import { Band, Card, Donut, IconArrow, Processed, ResultStatusNote, RingIndicator, SectionHead, Segmented, Swatch, Updated } from '@/components/ui';
 
 type ListTab = 'sve' | 'manjinske' | 'inostranstvo';
-type DistrictTab = 'okruzi' | 'izlaznost';
 
 export function Home() {
     const { slug, election } = useElection();
@@ -23,12 +23,10 @@ export function Home() {
     const close = useSnapshotList<CloseRace>('results', 'close-races.json');
     const winners = useSnapshotList<Winner>('results', 'winners.json');
     const districts = useSnapshotList<District>('registry', 'districts.json');
-    const districtTurnout = useSnapshotList<DistrictTurnout>('turnout', 'turnout-districts.json');
     const municipalities = useSnapshotList<Municipality>('registry', 'municipalities.json');
     const diaspora = municipalities.list?.find((m) => m.district_code === '99');
     const diasporaResults = useSnapshotData<MunicipalityResults>('results', diaspora ? `99/results-99-${diaspora.code}.json` : '', { skip: !diaspora });
     const [listTab, setListTab] = useState<ListTab>('sve');
-    const [districtTab, setDistrictTab] = useState<DistrictTab>('okruzi');
 
     const lastTurnout = turnout.list?.filter((c) => c.voters_voted !== null).at(-1);
     const meta = summary.meta ?? info.meta;
@@ -39,8 +37,6 @@ export function Home() {
     const listTabs: Array<{ value: ListTab; label: string }> = [{ value: 'sve', label: 'Sve liste' }];
     if (single?.lists.some((l) => l.is_minority)) listTabs.push({ value: 'manjinske', label: 'Liste nacionalnih manjina' });
     if (diaspora && diasporaResults.available) listTabs.push({ value: 'inostranstvo', label: 'Glasanje u inostranstvu' });
-
-    const lastDistrictTurnout = (dt: DistrictTurnout) => dt.cutoffs.filter((c) => c.voters_voted !== null).at(-1);
 
     return (
         <div>
@@ -106,7 +102,24 @@ export function Home() {
             <Band className="mt-10">
                 {single && (
                     <Card>
-                        <SectionHead title="Rezultati glasanja po listama" right={<Processed value={single.processed} label="Obrađeno" />} />
+                        <SectionHead title="Rezultati glasanja po listama" right={
+                            <span className="flex flex-wrap items-center gap-4">
+                                <Processed value={single.processed} label="Obrađeno" />
+                                <CsvButton
+                                    filename={`rezultati-po-listama-${slug}`}
+                                    rows={[...single.lists].sort((a, b) => b.votes - a.votes)}
+                                    columns={[
+                                        { label: 'Broj na listiću', value: (l) => l.number },
+                                        { label: 'Izborna lista', value: (l) => l.name },
+                                        { label: 'Nosilac liste', value: (l) => l.holder_name },
+                                        { label: 'Manjinska', value: (l) => (l.is_minority ? 'da' : 'ne') },
+                                        { label: 'Glasova', value: (l) => l.votes },
+                                        { label: 'Udeo %', value: (l) => l.votes_pct },
+                                        { label: 'Mandata', value: (l) => l.seats },
+                                    ]}
+                                />
+                            </span>
+                        } />
                         {listTabs.length > 1 && <div className="mb-4"><Segmented options={listTabs} value={listTab} onChange={setListTab} label="Prikaz lista" /></div>}
                         {listTab === 'inostranstvo' && diasporaResults.item ? (
                             <>
@@ -125,6 +138,7 @@ export function Home() {
                         {single.allocation.notes.length > 0 && (
                             <ul className="mt-3 list-disc pl-5 text-sm text-amber-900">{single.allocation.notes.map((n) => <li key={n}>{t(n)}</li>)}</ul>
                         )}
+                        <ResultStatusNote status={election.status} verified={single.stations_verified} total={single.stations_total} />
                     </Card>
                 )}
 
@@ -151,33 +165,9 @@ export function Home() {
                 )}
 
                 <Card>
-                    <SectionHead title="Rezultati po okruzima" />
-                    <div className="mb-4"><Segmented options={[{ value: 'okruzi', label: 'Po okruzima' }, { value: 'izlaznost', label: 'Po izlaznosti' }]} value={districtTab} onChange={setDistrictTab} label="Prikaz okruga" /></div>
+                    <SectionHead title="Rezultati po okruzima" right={<Link className="link inline-flex items-center gap-1" to={`/${slug}/teritorija`}>{t('Mapa rezultata')} <IconArrow /></Link>} />
                     <WithFile state={districts} unavailable={t('Registar još nije objavljen.')}>
-                        {({ list }) => districtTab === 'okruzi' ? (
-                            <DistrictAccordion districts={list.filter((x) => x.stations > 0 || x.code !== '99')} slug={slug} />
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="data">
-                                    <thead><tr><th>{t('Okrug')}</th><th className="num">{t('Upisanih birača')}</th><th className="num">{t('Presek')}</th><th className="num">{t('Izlaznost')}</th></tr></thead>
-                                    <tbody>
-                                        {list
-                                            .map((x) => ({ d: x, c: lastDistrictTurnout(districtTurnout.list?.find((dt) => String(dt.district_code) === x.code) ?? { district_code: x.code, registered_voters: 0, cutoffs: [] }) }))
-                                            .filter((row) => row.c)
-                                            .sort((a, b) => (b.c?.turnout_pct ?? 0) - (a.c?.turnout_pct ?? 0))
-                                            .map(({ d: x, c }) => (
-                                                <tr key={x.code}>
-                                                    <td><Link className="link" to={`/${slug}/teritorija/${x.code}`}>{t(x.name)}</Link></td>
-                                                    <td className="num">{num(x.registered_voters)}</td>
-                                                    <td className="num">{c?.cutoff}</td>
-                                                    <td className="num strong">{pct(c?.turnout_pct)}</td>
-                                                </tr>
-                                            ))}
-                                    </tbody>
-                                </table>
-                                {!districtTurnout.available && <p className="muted mt-2">{t('Izlaznost po okruzima još nije objavljena.')}</p>}
-                            </div>
-                        )}
+                        {({ list }) => <DistrictAccordion districts={list.filter((x) => x.stations > 0)} slug={slug} />}
                     </WithFile>
                 </Card>
 

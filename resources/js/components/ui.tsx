@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import type { Meta } from '@/types';
 import { useT } from '@/app/hooks';
-import { dateTime, listColor, pct } from '@/lib/format';
+import { dateTime, listColor, num, pct } from '@/lib/format';
 
 /* ---------- icons (inline SVG, no icon font) ---------- */
 
@@ -190,6 +190,49 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
     };
     const [cls, label] = (status && map[status]) || ['badge-gray', 'Nije unet'];
     return <span className={`badge ${cls}`}>{t(label)}</span>;
+}
+
+/**
+ * Says out loud whether the numbers are still provisional. A share of the count
+ * is not the same statement as "these are the final results", and the reader
+ * should not have to infer which one they are looking at.
+ */
+export function ResultStatusNote({ status, verified, total }: { status: string; verified: number; total: number }) {
+    const t = useT();
+    if (status === 'final') {
+        return (
+            <p className="mt-4 rounded-lg bg-ok-soft px-4 py-2.5 text-sm text-green-900">
+                <b>{t('Konačni rezultati')}.</b> {t('Svi zapisnici biračkih odbora su verifikovani i uračunati')} ({num(verified)} {t('od')} {num(total)}).
+            </p>
+        );
+    }
+    if (status === 'counting') {
+        return (
+            <p className="mt-4 rounded-lg bg-warn-soft px-4 py-2.5 text-sm text-amber-900">
+                <b>{t('Prethodni rezultati')}.</b> {t('Brojanje je u toku. U zbir ulaze samo verifikovani zapisnici')} ({num(verified)} {t('od')} {num(total)} {t('biračkih mesta')}), {t('pa se brojevi menjaju do utvrđivanja konačnih rezultata.')}
+            </p>
+        );
+    }
+    return null;
+}
+
+/** Badges a voter cares about on a polling station: step-free access, voting abroad. */
+export function StationTags({ station }: { station: { accessible?: boolean; is_diaspora?: boolean; country?: string | null } }) {
+    const t = useT();
+    if (!station.accessible && !station.is_diaspora) return null;
+    return (
+        <span className="mt-1 flex flex-wrap gap-1.5">
+            {station.accessible && (
+                <span className="badge badge-green" title={t('Biračko mesto je pristupačno osobama sa invaliditetom')}>
+                    <svg className="mr-1 h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="4.5" r="2" /><path d="M9 9h6M12 9v6h5M8.5 12a5.5 5.5 0 1 0 7 7" />
+                    </svg>
+                    {t('pristupačno')}
+                </span>
+            )}
+            {station.is_diaspora && <span className="badge badge-blue">{t('inostranstvo')}{station.country ? `: ${t(station.country)}` : ''}</span>}
+        </span>
+    );
 }
 
 export function Breadcrumbs({ items }: { items: Array<{ label: string; to?: string }> }) {

@@ -15,6 +15,12 @@
             pollSeconds: 60
         };
     </script>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ \App\Models\Setting::get('site_name', config('app.name')) }}">
+    <meta property="og:title" content="{{ \App\Models\Setting::get('site_name', config('app.name')) }}">
+    <meta property="og:description" content="Rezultati izbora po biračkom mestu, sa skeniranim zapisnicima i otvorenim podacima.">
+    <meta property="og:locale" content="sr_RS">
+    <meta name="twitter:card" content="summary">
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
 </head>
 <body>

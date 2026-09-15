@@ -5,15 +5,17 @@ import { useAppDispatch, useAppSelector, useT } from '@/app/hooks';
 import { setScript } from '@/app/ui-slice';
 import { STATUS_LABEL, dateLong, dateTime } from '@/lib/format';
 import { Search } from './Search';
+import { LiveStrip } from './LiveStrip';
 
 const NAV: Array<{ to: string; label: string; end?: boolean }> = [
     { to: '', label: 'Početna', end: true },
-    { to: 'skupstina', label: 'Sastav Narodne skupštine' },
+    { to: 'skupstina', label: 'Sastav skupštine' },
     { to: 'liste', label: 'Izborne liste' },
+    { to: 'podnosioci', label: 'Podnosioci' },
     { to: 'teritorija', label: 'Po teritoriji' },
     { to: 'izlaznost', label: 'Izlaznost' },
     { to: 'zapisnici', label: 'Zapisnici' },
-    { to: 'mandati', label: 'Raspodela mandata' },
+    { to: 'mandati', label: 'Mandati' },
     { to: 'rokovi', label: 'Rokovi' },
     { to: 'o-podacima', label: 'Informacije' },
 ];
@@ -42,9 +44,12 @@ export function Layout() {
 
     return (
         <div className="min-h-screen bg-white">
+            <a className="skip" href="#sadrzaj">{t('Pređi na sadržaj')}</a>
+            <a className="skip" href="#navigacija">{t('Pređi na navigaciju')}</a>
+
             <header className="border-b border-line bg-white">
                 <div className="container-x flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
-                    <Link to={`/${slug}`} className="flex min-w-0 items-center gap-3 no-underline text-ink">
+                    <Link to={`/${slug}`} className="flex min-w-0 items-center gap-3 text-ink no-underline">
                         <BrandMark />
                         <span className="min-w-0">
                             <span className="block truncate text-lg font-bold leading-tight">{t(election.name)}</span>
@@ -59,7 +64,7 @@ export function Layout() {
                         </div>
                     </div>
                 </div>
-                <nav className="container-x overflow-x-auto" aria-label="Glavna navigacija">
+                <nav id="navigacija" className="container-x navfade overflow-x-auto" aria-label="Glavna navigacija">
                     <ul className="flex gap-1 whitespace-nowrap pb-2">
                         {NAV.map((item) => (
                             <li key={item.to}>
@@ -71,6 +76,8 @@ export function Layout() {
                     </ul>
                 </nav>
             </header>
+
+            <LiveStrip />
 
             {(index.elections.length > 1 || site?.notice) && (
                 <div className="border-b border-line bg-line-2">
@@ -88,7 +95,7 @@ export function Layout() {
                 </div>
             )}
 
-            <main className="container-x py-6 md:py-8">
+            <main id="sadrzaj" className="container-x py-6 md:py-8">
                 <Outlet />
             </main>
 

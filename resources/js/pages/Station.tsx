@@ -4,7 +4,7 @@ import { useSnapshotList, useT } from '@/app/hooks';
 import type { CodebookEntry, ElectoralList, StationProtocol } from '@/types';
 import { dateTime, num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
-import { Band, Bar, Breadcrumbs, Card, PageTitle, StatusBadge, Swatch } from '@/components/ui';
+import { Band, Bar, Breadcrumbs, Card, PageTitle, StationTags, StatusBadge, Swatch } from '@/components/ui';
 
 /** station_id is "{district}-{municipality}-{number}"; the number itself may contain dashes. */
 function parseStationId(id: string): { district: string; municipality: string; number: string } | null {
@@ -37,9 +37,10 @@ export function Station() {
             <WithFile state={source} unavailable={t('Podaci još nisu objavljeni.')}>
                 {() => station ? (
                     <>
-                        <PageTitle title={`Biračko mesto ${station.number}: ${station.name}`} meta={protocols.meta ?? stations.meta} sub={<>{station.address && <>{t(station.address)}, </>}{num(station.registered_voters)} {t('upisanih birača')}{station.accessible && <>, {t('pristupačno')}</>}</>}>
+                        <PageTitle title={`Biračko mesto ${station.number}: ${station.name}`} meta={protocols.meta ?? stations.meta} sub={<>{station.address && <>{t(station.address)}, </>}{num(station.registered_voters)} {t('upisanih birača')}</>}>
                             <div className="mt-3 flex flex-wrap items-center gap-3">
                                 <StatusBadge status={station.status} />
+                                <StationTags station={station} />
                                 {station.revision !== undefined && <span className="muted">{t('revizija')} {station.revision}</span>}
                                 {station.verified_at && <span className="muted">{t('verifikovano')} {dateTime(station.verified_at)}</span>}
                                 {station.recount_requested && <span className="badge badge-amber">{t('zatraženo ponovno brojanje')}</span>}

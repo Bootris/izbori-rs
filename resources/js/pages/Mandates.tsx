@@ -5,7 +5,8 @@ import { useSnapshotData, useSnapshotList, useT } from '@/app/hooks';
 import type { ResultsSummary, Unit, UnitResults } from '@/types';
 import { num } from '@/lib/format';
 import { WithFile } from '@/components/state';
-import { Band, Card, PageTitle, Swatch } from '@/components/ui';
+import { CsvButton } from '@/components/Csv';
+import { Band, Card, PageTitle, SectionHead, Swatch } from '@/components/ui';
 
 const PREVIEW_ROWS = 40;
 
@@ -71,7 +72,20 @@ export function Mandates() {
                                     {rows < (u.seats ?? 0) && <button type="button" className="btn-link mt-3" onClick={() => setShowAll(true)}>{t('Prikaži sve delioce')} ({u.seats})</button>}
                                 </Card>
                                 <Card>
-                                    <h2 className="mb-4">{t('Redosled dodele mandata')}</h2>
+                                    <SectionHead title="Redosled dodele mandata" right={
+                                        <CsvButton
+                                            filename={`redosled-mandata-${code}`}
+                                            rows={u.seat_rows}
+                                            columns={[
+                                                { label: 'Mandat', value: (r) => r.seat_no },
+                                                { label: 'Lista', value: (r) => r.list_short_name },
+                                                { label: 'Delilac', value: (r) => r.divisor },
+                                                { label: 'Količnik', value: (r) => Math.round(r.quotient) },
+                                                { label: 'Kandidat', value: (r) => r.candidate?.full_name },
+                                                { label: 'Mesto na listi', value: (r) => r.candidate?.position },
+                                            ]}
+                                        />
+                                    } />
                                     <div className="overflow-x-auto">
                                         <table className="data min-w-[560px]">
                                             <thead><tr><th className="num">{t('Mandat')}</th><th>{t('Lista')}</th><th className="num">{t('Delilac')}</th><th className="num">{t('Količnik')}</th><th>{t('Kandidat')}</th></tr></thead>

@@ -6,7 +6,8 @@ import type { Composition, ElectoralList, ResultsSummary, UnitListRow } from '@/
 import { num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
 import { ListResults } from '@/components/ListResults';
-import { Band, Breadcrumbs, Card, PageTitle, Stat, Swatch } from '@/components/ui';
+import { CsvButton } from '@/components/Csv';
+import { Band, Breadcrumbs, Card, PageTitle, SectionHead, Stat, Swatch } from '@/components/ui';
 
 /** Picks one unit when an election has several (local elections); parliamentary has exactly one. */
 export function useUnitSelector(summary: ResultsSummary | undefined) {
@@ -37,6 +38,21 @@ export function Lists() {
                 )}
                 {selected ? (
                     <Card>
+                        <SectionHead title="Rezultati po listama" right={
+                            <CsvButton
+                                filename={`izborne-liste-${slug}`}
+                                rows={[...selected.lists].sort((a, b) => b.votes - a.votes)}
+                                columns={[
+                                    { label: 'Broj na listiću', value: (l) => l.number },
+                                    { label: 'Izborna lista', value: (l) => l.name },
+                                    { label: 'Nosilac liste', value: (l) => l.holder_name },
+                                    { label: 'Manjinska', value: (l) => (l.is_minority ? 'da' : 'ne') },
+                                    { label: 'Glasova', value: (l) => l.votes },
+                                    { label: 'Udeo %', value: (l) => l.votes_pct },
+                                    { label: 'Mandata', value: (l) => l.seats },
+                                ]}
+                            />
+                        } />
                         <ListResults rows={selected.lists} slug={slug} showSeats={election.type !== 'presidential'} thresholdVotes={selected.allocation.threshold_votes} seatsTotal={selected.seats} />
                     </Card>
                 ) : (

@@ -6,6 +6,7 @@ import type { Composition as CompositionData } from '@/types';
 import { num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
 import { Hemicycle } from '@/components/Hemicycle';
+import { CsvButton } from '@/components/Csv';
 import { Band, Card, Processed, SectionHead, Swatch, Updated } from '@/components/ui';
 
 export function Composition() {
@@ -44,6 +45,22 @@ export function Composition() {
                         <Band className="mt-10">
                             <Card>
                                 <SectionHead title="Izabrani poslanici" right={
+                                    <span className="flex flex-wrap items-center gap-4">
+                                    <CsvButton
+                                        filename={`izabrani-poslanici-${slug}`}
+                                        rows={c.seats.filter((x) => !filter || x.list_short_name === filter)}
+                                        columns={[
+                                            { label: 'Mandat', value: (x) => x.seat_no },
+                                            { label: 'Poslanik', value: (x) => x.candidate?.full_name },
+                                            { label: 'Godište', value: (x) => x.candidate?.birth_year },
+                                            { label: 'Zanimanje', value: (x) => x.candidate?.occupation },
+                                            { label: 'Prebivalište', value: (x) => x.candidate?.residence },
+                                            { label: 'Lista', value: (x) => x.list_short_name },
+                                            { label: 'Mesto na listi', value: (x) => x.candidate?.position },
+                                            { label: 'Delilac', value: (x) => x.divisor },
+                                            { label: 'Količnik', value: (x) => Math.round(x.quotient) },
+                                        ]}
+                                    />
                                     <label className="flex items-center gap-2 text-sm">
                                         <span className="text-ink-2">{t('Lista')}:</span>
                                         <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -51,6 +68,7 @@ export function Composition() {
                                             {c.by_list.filter((l) => l.seats > 0).map((l, i) => <option key={i} value={l.short_name ?? l.name}>{t(l.short_name ?? l.name)}</option>)}
                                         </select>
                                     </label>
+                                    </span>
                                 } />
                                 <div className="overflow-x-auto">
                                     <table className="data min-w-[640px]">

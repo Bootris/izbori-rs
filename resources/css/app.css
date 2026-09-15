@@ -97,6 +97,24 @@
     table.data th.num, table.data td.num { @apply whitespace-nowrap text-right tabular-nums; }
     table.data td.strong { @apply font-semibold; }
 
+    .btn-primary { @apply rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark; }
+    .btn-csv { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink-2 hover:border-primary hover:text-primary; }
+
+    /* keyboard users land here first; the link only shows while focused */
+    .skip { @apply sr-only; }
+    .skip:focus { @apply not-sr-only fixed left-4 top-4 z-50 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white; }
+
+    /* the nav scrolls sideways on narrow screens; the fade says there is more */
+    .navfade { -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); }
+    @media (min-width: 1100px) { .navfade { -webkit-mask-image: none; mask-image: none; } }
+
+    /* election-night strip under the header */
+    .livestrip { @apply sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur; }
+    .pulse-dot { @apply relative inline-flex h-2.5 w-2.5 rounded-full bg-ok; }
+    .pulse-dot::after { content: ''; @apply absolute inset-0 rounded-full bg-ok opacity-75; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+    @keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .pulse-dot::after { animation: none; } }
+
     .input { @apply w-full rounded-full border border-line bg-line-2 px-4 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-primary focus:bg-white; }
     .select { @apply rounded-md border border-line bg-white px-2.5 py-1.5 text-sm; }
     .btn-link { @apply text-sm font-medium text-primary hover:underline; }

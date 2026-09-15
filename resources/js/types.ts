@@ -350,6 +350,13 @@ export interface FlaggedStation {
     revision: number;
 }
 
+export interface DistrictResults extends Totals {
+    district_code: string;
+    name: string;
+    unit_code: string | null;
+    lists: ListRow[];
+}
+
 export interface MunicipalityResults extends Totals {
     code: string;
     name: string;

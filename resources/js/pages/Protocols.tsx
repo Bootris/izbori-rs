@@ -5,7 +5,8 @@ import { useSnapshotList, useT } from '@/app/hooks';
 import type { FlaggedStation, Municipality, StationProtocol } from '@/types';
 import { num, pct, searchKey } from '@/lib/format';
 import { WithFile } from '@/components/state';
-import { Band, Card, PageTitle, StatusBadge } from '@/components/ui';
+import { CsvButton } from '@/components/Csv';
+import { Band, Card, PageTitle, SectionHead, StationTags, StatusBadge } from '@/components/ui';
 
 export function Protocols() {
     const { slug } = useElection();
@@ -42,7 +43,7 @@ export function Protocols() {
                                             {rows.map((s) => (
                                                 <tr key={s.station_id}>
                                                     <td className="num"><Link className="link" to={`/${slug}/biracko-mesto/${s.station_id}`}>{s.number}</Link></td>
-                                                    <td>{t(s.name)}</td>
+                                                    <td>{t(s.name)}<StationTags station={s} /></td>
                                                     <td className="num">{num(s.voters_voted)}</td>
                                                     <td className="num">{s.turnout_pct === undefined ? '-' : pct(s.turnout_pct)}</td>
                                                     <td className={`num ${s.deviation ? 'font-semibold text-bad' : ''}`}>{s.deviation ?? '-'}</td>
@@ -59,7 +60,20 @@ export function Protocols() {
                 </Card>
 
                 <Card>
-                    <h2 className="mb-4">{t('Zapisnici sa odstupanjem')}</h2>
+                    <SectionHead title="Zapisnici sa odstupanjem" right={
+                        <CsvButton
+                            filename={`zapisnici-sa-odstupanjem-${slug}`}
+                            rows={flagged.list ?? []}
+                            columns={[
+                                { label: 'Biračko mesto', value: (f) => f.station_id },
+                                { label: 'Naziv', value: (f) => f.station_name },
+                                { label: 'Opština', value: (f) => f.municipality_name },
+                                { label: 'Odstupanje', value: (f) => f.deviation },
+                                { label: 'Kontrolne sume', value: (f) => Object.entries(f.errors).map(([k, v]) => `${k}: ${v}`).join(' ') },
+                                { label: 'Revizija', value: (f) => f.revision },
+                            ]}
+                        />
+                    } />
                     <WithFile state={flagged} unavailable={t('Rezultati još nisu objavljeni.')}>
                         {({ list }) => list.length === 0 ? <p className="muted">{t('Trenutno nema zapisnika sa odstupanjem.')}</p> : (
                             <div className="overflow-x-auto">
