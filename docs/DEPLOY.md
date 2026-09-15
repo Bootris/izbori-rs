@@ -143,6 +143,22 @@ server {
 }
 ```
 
+### Bez rewrite pravila (čist object storage)
+
+Blok `location /` gore postoji da bi svaka putanja vratila `index.html`, jer SPA
+rutira kroz putanju. Ako se javni sloj servira sa object storage-a koji to ne
+ume, uključi rutiranje kroz fragment URL-a u `window.__IZBORI__`:
+
+```js
+window.__IZBORI__ = {
+    dataUrl: 'data',      // relativno, pa radi i u podfolderu
+    hashRouting: true,    // /izlaznost postaje /#/izlaznost
+    pollSeconds: 60
+};
+```
+
+Sve ostalo ostaje isto: isti bundle, isti snapshot fajlovi, ista pravila keširanja.
+
 `gzip_static on` očekuje `.json.gz` pored fajlova — generiši ih posle objave
 (`find public/data -name '*.json' -newer … -exec gzip -k9 {} +`) ili prepusti CDN-u.
 

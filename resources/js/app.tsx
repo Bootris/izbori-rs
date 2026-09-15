@@ -1,8 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { store } from '@/app/store';
+import { env } from '@/env';
 import { useIndexQuery } from '@/app/api';
 import { ElectionProvider } from '@/app/election-context';
 import { Layout } from '@/components/Layout';
@@ -66,15 +67,17 @@ function App() {
     );
 }
 
+const Router = env.hashRouting ? HashRouter : BrowserRouter;
+
 const root = document.getElementById('root');
 if (root) {
     createRoot(root).render(
         <StrictMode>
             <Provider store={store}>
                 <ErrorBoundary>
-                    <BrowserRouter>
+                    <Router>
                         <App />
-                    </BrowserRouter>
+                    </Router>
                 </ErrorBoundary>
             </Provider>
         </StrictMode>,

@@ -4,6 +4,12 @@ export interface IzboriEnv {
     publisher: string;
     methodologyUrl: string;
     pollSeconds: number;
+    /**
+     * Route in the URL fragment instead of the path. Set it when the snapshot
+     * set is served straight from object storage, where there is no rewrite
+     * rule to hand every path back to index.html.
+     */
+    hashRouting: boolean;
 }
 
 declare global {
@@ -18,6 +24,7 @@ const DEFAULTS: IzboriEnv = {
     publisher: '',
     methodologyUrl: '',
     pollSeconds: 60,
+    hashRouting: false,
 };
 
 function readEnv(): IzboriEnv {
@@ -31,6 +38,7 @@ function readEnv(): IzboriEnv {
         methodologyUrl: raw.methodologyUrl ?? '',
         pollSeconds:
             typeof raw.pollSeconds === 'number' && raw.pollSeconds > 0 ? raw.pollSeconds : DEFAULTS.pollSeconds,
+        hashRouting: raw.hashRouting === true,
     };
 }
 
