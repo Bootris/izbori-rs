@@ -24,6 +24,13 @@ return [
     ],
 
     /*
+    | Demo seed stage (database/seeders/Parliamentary2023Seeder):
+    |   final    — every protocol verified, allocation = official-style final result
+    |   counting — election-night snapshot: missing, unverified and flagged protocols
+    */
+    'seed_stage' => env('SEED_STAGE', 'final'),
+
+    /*
     |--------------------------------------------------------------------------
     | Snapshots (published JSON)
     |--------------------------------------------------------------------------
