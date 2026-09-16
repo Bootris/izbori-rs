@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Models\Setting;
+use App\Services\Snapshots\SnapshotPublisher;
 use App\Support\Access;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
@@ -57,6 +58,12 @@ class ManageSettings extends Page
                             ->columnSpanFull()
                             ->helperText('Prikazuje se kao traka ispod zaglavlja (npr. „Preliminarni rezultati, obrada u toku"). Prazno = bez trake. Primenjuje se pri sledećoj objavi.'),
                     ]),
+                Section::make('Informacije: linkovi')
+                    ->description('Spoljni linkovi na javnoj stranici „Informacije". Prazno polje se ne prikazuje.')
+                    ->columns(2)
+                    ->components(collect(Setting::INFO_LINKS)
+                        ->map(fn (string $label, string $key) => TextInput::make($key)->label($label)->url())
+                        ->values()->all()),
             ])
             ->statePath('data');
     }

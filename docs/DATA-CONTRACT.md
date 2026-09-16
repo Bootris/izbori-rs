@@ -10,18 +10,22 @@ Javni frontend čita **samo** ove fajlove (nikad bazu ni Laravel API). Generiše
 /data/{election}/{version}/{source}/manifest.json  ← SHA-256 svakog fajla + hash lanac
 ```
 
-`version` = `MMDDHHmm` (mesec, dan, sat, minut objave). `source` ∈ `registry | turnout | results`.
+`version` = `MMDDHHmm` (mesec, dan, sat, minut objave). `source` ∈ `registry | turnout | results | incidents`.
 
 ## index.json
 ```json
 { "generated": "ISO-8601", "default": "parlament-2026-demo",
+  "site": { "name", "publisher", "notice", "contact_email", "methodology_url",
+            "links": { "legislation_url", "observers_url", "nominators_url", "forms_url", "commission_url", "news_url" } },
   "elections": [ { "slug", "name", "type", "election_date", "status", "round",
-                   "sources": { "registry": "09150224", "turnout": "…|null", "results": "…|null" } } ] }
+                   "sources": { "registry": "09150224", "turnout": "…|null", "results": "…|null", "incidents": "…|null" } } ] }
 ```
+`site.links.*` su spoljni linkovi stranice „Informacije" (podešavanja u adminu); `null` = link se ne prikazuje.
+Fajlovi objavljeni pre uvođenja izvora `incidents` nemaju taj ključ, klijent ga tretira kao `null`.
 
 ## config.json
 ```json
-{ "election": "slug", "registry": "09150224", "turnout": "09150224", "results": "09150310", "updated": "ISO" }
+{ "election": "slug", "registry": "09150224", "turnout": "09150224", "results": "09150310", "incidents": "09150312", "updated": "ISO" }
 ```
 Klijent pollinguje ovaj fajl (npr. na 60 s); kad se broj promeni, ponovo učitava fajlove tog izvora.
 
@@ -66,6 +70,20 @@ Klijent pollinguje ovaj fajl (npr. na 60 s); kad se broj promeni, ponovo učitav
 | `flagged.json` | list | `[{station_id, station_name, municipality_code, municipality_name, district_code, deviation, errors:{K4:"…"}, revision}]` |
 | `{d}/results-{d}-{m}.json` | data | `{code, name, district_code, unit_code, …Totals, lists:[ListRow]}` |
 | `{d}/protocols-{d}-{m}.json` | list | `[Station + {status: null \| "entered"\|"flagged"\|"verified"\|"annulled", revision, recount_requested, registered_voters_protocol, ballots_received, ballots_unused, voters_voted, turnout_pct, ballots_in_box, ballots_valid, ballots_invalid, deviation, errors, verified_at, items:[{list_id, votes, votes_pct}], scans:[url]}]` |
+
+## incidents/
+| Fajl | Ključ | Sadržaj |
+|---|---|---|
+| `incidents.json` | list | `[{id, station_id, station_number, station_name, municipality_code, municipality_name, district_code, category, severity, status, description, occurred_at, reported_at, resolved_at, resolution}]`, najnovija prijava prva |
+
+Prijave problema sa biračkih mesta. Objavljuju se **samo** prijave koje je admin (RIK) označio
+kao javne (`incidents.is_public`); ko je prijavio i interne beleške nikad ne izlaze iz admina.
+`reported_at` je vreme servera u trenutku prijave (nepromenljivo), `occurred_at` vreme
+događaja po navodu prijavioca. `category` ∈ `voting_interrupted | materials | board_dispute |
+voter_roll | intimidation | observers | facility | other`, `severity` ∈ `low | medium | high |
+critical`, `status` ∈ `open | in_review | resolved | dismissed`; `resolution` je `null` dok
+prijava nije zatvorena. `processed` je `null`. Scheduler objavljuje ovaj izvor dok je izbor u
+statusu glasanje ili brojanje, ali samo kad se neka prijava promenila od prethodne objave.
 
 **Totals** = `{stations_total, stations_verified, stations_entered, stations_flagged, processed, registered_voters_all, registered_voters, voters_voted, turnout_pct, ballots_in_box, ballots_valid, ballots_invalid, invalid_pct}`
 

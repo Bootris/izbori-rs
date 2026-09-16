@@ -5,6 +5,7 @@ import type { CodebookEntry, ElectoralList, StationProtocol } from '@/types';
 import { dateTime, num, pct } from '@/lib/format';
 import { WithFile } from '@/components/state';
 import { Band, Bar, Breadcrumbs, Card, PageTitle, StationTags, StatusBadge, Swatch } from '@/components/ui';
+import { StationIncidents } from '@/pages/Info';
 
 /** station_id is "{district}-{municipality}-{number}"; the number itself may contain dashes. */
 function parseStationId(id: string): { district: string; municipality: string; number: string } | null {
@@ -114,6 +115,7 @@ export function Station() {
                                     </Card>
                                 </>
                             )}
+                            <StationIncidents stationId={stationId} />
                         </Band>
                     </>
                 ) : <p className="muted">{t('Biračko mesto nije pronađeno.')}</p>}

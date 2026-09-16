@@ -4,6 +4,8 @@ const pf1 = new Intl.NumberFormat('sr-Latn-RS', { minimumFractionDigits: 1, maxi
 const df = new Intl.DateTimeFormat('sr-Latn-RS', { day: 'numeric', month: 'long', year: 'numeric' });
 const dfShort = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const dtf = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const dtfs = new Intl.DateTimeFormat('sr-Latn-RS', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const tfs = new Intl.DateTimeFormat('sr-Latn-RS', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /** Placeholder for a value that is not published yet. */
 export const NA = '-';
@@ -14,6 +16,8 @@ export const pct1 = (v: number | null | undefined): string => (v == null ? NA : 
 export const date = (iso: string | null | undefined): string => (iso ? dfShort.format(new Date(iso)) : NA);
 export const dateLong = (iso: string | null | undefined): string => (iso ? df.format(new Date(iso)) : NA);
 export const dateTime = (iso: string | null | undefined): string => (iso ? dtf.format(new Date(iso)) : NA);
+export const dateTimeSec = (iso: string | null | undefined): string => (iso ? dtfs.format(new Date(iso)) : NA);
+export const timeSec = (iso: string | null | undefined): string => (iso ? tfs.format(new Date(iso)) : NA);
 
 /** Fallback categorical slot for a list without its own color (fixed order, never cycled past 8). */
 export const seriesColor = (index: number): string => `var(--series-${(index % 8) + 1})`;
@@ -60,4 +64,29 @@ export const PROTOCOL_STATUS_LABEL: Record<string, string> = {
     flagged: 'Sa odstupanjem',
     verified: 'Verifikovan',
     annulled: 'Poništen',
+};
+
+export const INCIDENT_SEVERITY_LABEL: Record<string, string> = {
+    low: 'Niska',
+    medium: 'Srednja',
+    high: 'Visoka',
+    critical: 'Kritična',
+};
+
+export const INCIDENT_STATUS_LABEL: Record<string, string> = {
+    open: 'Otvorena',
+    in_review: 'U obradi',
+    resolved: 'Rešena',
+    dismissed: 'Odbačena',
+};
+
+export const INCIDENT_CATEGORY_LABEL: Record<string, string> = {
+    voting_interrupted: 'Prekid glasanja',
+    materials: 'Izborni materijal',
+    board_dispute: 'Spor u biračkom odboru',
+    voter_roll: 'Birački spisak',
+    intimidation: 'Pritisak na birače ili nasilje',
+    observers: 'Posmatrači',
+    facility: 'Prostorija biračkog mesta',
+    other: 'Ostalo',
 };

@@ -13,8 +13,8 @@ class PublishSnapshot extends Command
 {
     protected $signature = 'izbori:publish
         {election : Election slug}
-        {--source=* : registry | turnout | results (default: results)}
-        {--all : Publish all three sources, registry first}';
+        {--source=* : registry | turnout | results | incidents (default: results)}
+        {--all : Publish every source, registry first}';
 
     protected $description = 'Generate an immutable JSON snapshot and switch config.json to it';
 

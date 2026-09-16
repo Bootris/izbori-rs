@@ -130,14 +130,12 @@ final class SnapshotPublisher
         $path = "{$election->slug}/config.json";
         $current = $disk->exists($path) ? (json_decode((string) $disk->get($path), true) ?: []) : [];
 
-        $config = [
-            'election' => $election->slug,
-            'registry' => $current['registry'] ?? null,
-            'turnout' => $current['turnout'] ?? null,
-            'results' => $current['results'] ?? null,
-            'updated' => $at->toIso8601String(),
-        ];
+        $config = ['election' => $election->slug];
+        foreach (SnapshotSource::cases() as $s) {
+            $config[$s->value] = $current[$s->value] ?? null;
+        }
         $config[$source->value] = $version;
+        $config['updated'] = $at->toIso8601String();
 
         $this->putAtomic($disk, $path, $this->encode($config));
     }
@@ -159,11 +157,9 @@ final class SnapshotPublisher
                     'election_date' => $e->election_date->toDateString(),
                     'status' => $e->status->value,
                     'round' => $e->round,
-                    'sources' => [
-                        'registry' => $config['registry'] ?? null,
-                        'turnout' => $config['turnout'] ?? null,
-                        'results' => $config['results'] ?? null,
-                    ],
+                    'sources' => collect(SnapshotSource::cases())
+                        ->mapWithKeys(fn (SnapshotSource $s) => [$s->value => $config[$s->value] ?? null])
+                        ->all(),
                 ];
             })
             ->filter(fn ($e) => $e['sources']['registry'] !== null)
@@ -179,6 +175,10 @@ final class SnapshotPublisher
                 'notice' => ($settings['public_notice'] ?? '') ?: null,
                 'contact_email' => ($settings['contact_email'] ?? '') ?: null,
                 'methodology_url' => ($settings['methodology_url'] ?? '') ?: null,
+                // Outbound links of the public "Informacije" hub; each one is hidden while empty.
+                'links' => collect(Setting::INFO_LINKS)
+                    ->mapWithKeys(fn (string $label, string $key) => [$key => ($settings[$key] ?? '') ?: null])
+                    ->all(),
             ],
             'default' => $elections->first()['slug'] ?? null,
             'elections' => $elections->all(),

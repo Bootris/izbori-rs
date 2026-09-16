@@ -17,7 +17,7 @@ const NAV: Array<{ to: string; label: string; end?: boolean }> = [
     { to: 'zapisnici', label: 'Zapisnici' },
     { to: 'mandati', label: 'Mandati' },
     { to: 'rokovi', label: 'Rokovi' },
-    { to: 'o-podacima', label: 'Informacije' },
+    { to: 'informacije', label: 'Informacije' },
 ];
 
 /** Ballot-box mark used as the site logo (no external image). */
@@ -107,7 +107,7 @@ export function Layout() {
                 <div className="container-x t-label py-6">
                     <p className="font-semibold text-ink-2">{t(siteName)}{(site?.publisher ?? env.publisher) ? `, ${t(site?.publisher ?? env.publisher)}` : ''}</p>
                     <p className="mt-1 text-ink-3">
-                        {t('Verzije podataka')}: registar {config.registry ?? '-'}, izlaznost {config.turnout ?? '-'}, rezultati {config.results ?? '-'}. {t('Ažurirano')} {dateTime(config.updated)}.
+                        {t('Verzije podataka')}: registar {config.registry ?? '-'}, izlaznost {config.turnout ?? '-'}, rezultati {config.results ?? '-'}, prijave {config.incidents ?? '-'}. {t('Ažurirano')} {dateTime(config.updated)}.
                     </p>
                     <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                         <a className="link font-normal" href={`${env.dataUrl}/index.json`}>index.json</a>

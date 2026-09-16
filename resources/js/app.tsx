@@ -19,6 +19,7 @@ import { Station } from '@/pages/Station';
 import { Mandates } from '@/pages/Mandates';
 import { Protocols } from '@/pages/Protocols';
 import { About, Deadlines, NotFound } from '@/pages/Misc';
+import { Incidents, InfoHub, Voters } from '@/pages/Info';
 
 /** "/" redirects to the election index.json marks as default. */
 function RootRedirect() {
@@ -56,11 +57,14 @@ function App() {
                 <Route path="zapisnici" element={<Protocols />} />
                 <Route path="rokovi" element={<Deadlines />} />
                 <Route path="o-podacima" element={<About />} />
+                <Route path="informacije" element={<InfoHub />} />
+                <Route path="vanredni-dogadjaji" element={<Incidents />} />
+                <Route path="biraci" element={<Voters />} />
                 <Route path="raspodela-mandata" element={<Alias to="mandati" />} />
                 <Route path="sastav-skupstine" element={<Alias to="skupstina" />} />
                 <Route path="izborne-liste" element={<Alias to="liste" />} />
                 <Route path="po-teritoriji" element={<Alias to="teritorija" />} />
-                <Route path="informacije" element={<Alias to="o-podacima" />} />
+                <Route path="prijave" element={<Alias to="vanredni-dogadjaji" />} />
                 <Route path="*" element={<NotFound />} />
             </Route>
         </Routes>

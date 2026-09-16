@@ -33,15 +33,19 @@ class SnapshotPublishTest extends TestCase
         $registry = $publisher->publish($election, SnapshotSource::Registry);
         $turnout = $publisher->publish($election, SnapshotSource::Turnout);
         $results = $publisher->publish($election, SnapshotSource::Results);
+        $incidents = $publisher->publish($election, SnapshotSource::Incidents);
 
         $config = json_decode($disk->get("{$election->slug}/config.json"), true);
         $this->assertSame($registry->version, $config['registry']);
         $this->assertSame($turnout->version, $config['turnout']);
         $this->assertSame($results->version, $config['results']);
+        $this->assertSame($incidents->version, $config['incidents']);
+        $this->assertTrue($disk->exists("{$incidents->path}/incidents.json"));
 
         $index = json_decode($disk->get('index.json'), true);
         $this->assertSame($election->slug, $index['default']);
         $this->assertSame($results->version, $index['elections'][0]['sources']['results']);
+        $this->assertSame($incidents->version, $index['elections'][0]['sources']['incidents']);
 
         foreach (['election.json', 'codebooks.json', 'districts.json', 'municipalities.json', 'units.json', 'submitters.json', 'lists.json', 'deadlines.json', 'manifest.json'] as $file) {
             $this->assertTrue($disk->exists("{$registry->path}/{$file}"), "missing {$file}");
@@ -87,7 +91,7 @@ class SnapshotPublishTest extends TestCase
         $this->assertNotSame($results->version, $again->version);
         $this->assertTrue($disk->exists("{$results->path}/results-summary.json"), 'old version must stay immutable/available');
         $this->assertSame($again->version, json_decode($disk->get("{$election->slug}/config.json"), true)['results']);
-        $this->assertSame(4, Snapshot::count());
+        $this->assertSame(5, Snapshot::count());
     }
 
     public function test_publish_command_works(): void

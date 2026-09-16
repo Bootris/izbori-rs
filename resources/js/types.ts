@@ -1,6 +1,6 @@
 /* Types mirroring docs/DATA-CONTRACT.md. Every published file is an envelope: { meta, list } or { meta, data }. */
 
-export type Source = 'registry' | 'turnout' | 'results';
+export type Source = 'registry' | 'turnout' | 'results' | 'incidents';
 export type ElectionType = 'parliamentary' | 'provincial' | 'local' | 'presidential';
 export type ElectionStatus = 'draft' | 'registry' | 'voting' | 'counting' | 'final';
 export type AllocationMethod = 'dhondt' | 'majority_runoff';
@@ -10,6 +10,8 @@ export interface SourceVersions {
     registry: string | null;
     turnout: string | null;
     results: string | null;
+    /** Absent in index/config files published before the incidents source existed. */
+    incidents?: string | null;
 }
 
 export interface IndexElection {
@@ -22,12 +24,16 @@ export interface IndexElection {
     sources: SourceVersions;
 }
 
+/** Outbound links of the "Informacije" hub, each null while unset in the admin. */
+export type InfoLinkKey = 'legislation_url' | 'observers_url' | 'nominators_url' | 'forms_url' | 'commission_url' | 'news_url';
+
 export interface SiteInfo {
     name: string;
     publisher: string | null;
     notice: string | null;
     contact_email: string | null;
     methodology_url: string | null;
+    links?: Partial<Record<InfoLinkKey, string | null>> | null;
 }
 
 export interface IndexFile {
@@ -387,6 +393,31 @@ export interface ProtocolFields {
     verified_at: string | null;
     items: ProtocolItem[];
     scans: string[];
+}
+
+/* ---------- incidents ---------- */
+
+export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type IncidentStatus = 'open' | 'in_review' | 'resolved' | 'dismissed';
+export type IncidentCategory = 'voting_interrupted' | 'materials' | 'board_dispute' | 'voter_roll' | 'intimidation' | 'observers' | 'facility' | 'other';
+
+/** Row of incidents.json: an election-day report the commission chose to publish. */
+export interface Incident {
+    id: number;
+    station_id: string;
+    station_number: string;
+    station_name: string;
+    municipality_code: string;
+    municipality_name: string;
+    district_code: string;
+    category: IncidentCategory;
+    severity: IncidentSeverity;
+    status: IncidentStatus;
+    description: string;
+    occurred_at: string;
+    reported_at: string;
+    resolved_at: string | null;
+    resolution: string | null;
 }
 
 /** Row of protocols-{d}-{m}.json: the protocol fields are absent while no protocol has been entered. */

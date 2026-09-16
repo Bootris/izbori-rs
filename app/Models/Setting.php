@@ -9,6 +9,16 @@ use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
+    /** Optional outbound links shown on the public "Informacije" page (key => admin label). */
+    public const INFO_LINKS = [
+        'legislation_url' => 'Zakoni i propisi',
+        'observers_url' => 'Posmatrači (domaći i međunarodni)',
+        'nominators_url' => 'Informacije za podnosioce lista',
+        'forms_url' => 'Obrasci',
+        'commission_url' => 'Republička izborna komisija',
+        'news_url' => 'Saopštenja i vesti',
+    ];
+
     protected $fillable = ['key', 'value'];
 
     public static function get(string $key, mixed $default = null): mixed

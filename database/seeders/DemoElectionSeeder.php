@@ -7,6 +7,9 @@ namespace Database\Seeders;
 use App\Enums\AllocationMethod;
 use App\Enums\ElectionStatus;
 use App\Enums\ElectionType;
+use App\Enums\IncidentCategory;
+use App\Enums\IncidentSeverity;
+use App\Enums\IncidentStatus;
 use App\Enums\SubmitterType;
 use App\Enums\UserRole;
 use App\Models\Candidate;
@@ -15,6 +18,7 @@ use App\Models\District;
 use App\Models\Election;
 use App\Models\ElectionUnit;
 use App\Models\ElectoralList;
+use App\Models\Incident;
 use App\Models\Municipality;
 use App\Models\PollingStation;
 use App\Models\Protocol;
@@ -98,6 +102,7 @@ class DemoElectionSeeder extends Seeder
         $admin = User::query()->where('role', UserRole::Admin)->first() ?? User::factory()->create(['role' => UserRole::Admin]);
         $this->seedProtocols($election, $stations, $lists, $admin);
         $this->seedStaff($municipalities);
+        $this->seedIncidents($election, $stations, $admin);
     }
 
     /** @return \Illuminate\Support\Collection<int, Municipality> */
@@ -298,6 +303,57 @@ class DemoElectionSeeder extends Seeder
         }
 
         return $votes;
+    }
+
+    /** A handful of invented election-day reports: some public and closed, one still open. */
+    private function seedIncidents(Election $election, $stations, User $admin): void
+    {
+        $day = $election->election_date->copy();
+        $reporter = User::query()->where('email', 'operater.nis@example.com')->first() ?? $admin;
+        $byMunicipality = $stations->groupBy('municipality_id');
+        $pick = fn (string $name, int $n) => $byMunicipality->get(Municipality::query()->where('name', $name)->value('id'), collect())->get($n);
+
+        foreach ([
+            ['Niš – Medijana', 2, '07:42', IncidentCategory::Facility, IncidentSeverity::Low, IncidentStatus::Resolved, true,
+                'Nestanak struje u prostoriji biračkog mesta u trajanju od oko 15 minuta. Glasanje nastavljeno uz rezervno osvetljenje, kutija sve vreme pod nadzorom biračkog odbora.',
+                'Napajanje vraćeno u 07.57. Biračko mesto radi bez prekida.'],
+            ['Niš – Medijana', 5, '11:18', IncidentCategory::VoterRoll, IncidentSeverity::Medium, IncidentStatus::Resolved, true,
+                'Dva birača sa važećim ličnim kartama nisu pronađena u izvodu iz biračkog spiska za ovo biračko mesto.',
+                'Provera u OIK: birači upisani na susedno biračko mesto broj 4, upućeni tamo.'],
+            ['Novi Sad', 1, '13:05', IncidentCategory::Observers, IncidentSeverity::High, IncidentStatus::Dismissed, true,
+                'Predsednik biračkog odbora zatražio da posmatrač napusti prostoriju zbog fotografisanja glasačke kutije.',
+                'Posmatrač upozoren, ostao na biračkom mestu. Fotografisanje nije ponovljeno.'],
+            ['Kragujevac', 0, '15:31', IncidentCategory::Materials, IncidentSeverity::Critical, IncidentStatus::InReview, true,
+                'Pri kontroli utvrđeno da je pečat biračkog odbora oštećen; listići overeni posle 15.00 nemaju čitljiv otisak.',
+                null],
+            ['Niš – Medijana', 7, '16:12', IncidentCategory::BoardDispute, IncidentSeverity::Medium, IncidentStatus::Open, false,
+                'Član biračkog odbora iz proširenog sastava odbija da potpiše kontrolni list, tvrdi da kutija nije bila prazna pri otvaranju.',
+                null],
+        ] as [$municipality, $n, $time, $category, $severity, $status, $public, $description, $resolution]) {
+            $station = $pick($municipality, $n);
+            if ($station === null) {
+                continue;
+            }
+            $occurred = $day->copy()->setTimeFromTimeString($time);
+            Incident::create([
+                'election_id' => $election->id,
+                'polling_station_id' => $station->id,
+                'municipality_id' => $station->municipality_id,
+                'category' => $category,
+                'severity' => $severity,
+                'status' => $status,
+                'description' => $description,
+                'occurred_at' => $occurred,
+                'reported_at' => $occurred->copy()->addMinutes(mt_rand(2, 9))->addSeconds(mt_rand(0, 59)),
+                'reported_by' => $reporter->id,
+                'reviewed_by' => $status === IncidentStatus::Open ? null : $admin->id,
+                'reviewed_at' => $status === IncidentStatus::Open ? null : $occurred->copy()->addMinutes(12),
+                'resolved_by' => $status->isClosed() ? $admin->id : null,
+                'resolved_at' => $status->isClosed() ? $occurred->copy()->addMinutes(mt_rand(15, 70)) : null,
+                'resolution' => $resolution,
+                'is_public' => $public,
+            ]);
+        }
     }
 
     private function seedStaff($municipalities): void

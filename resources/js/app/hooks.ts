@@ -26,7 +26,7 @@ export function useSnapshotFile<T>(source: Source, path: string, opts: { skip?: 
         meta: file?.meta,
         isLoading: result.isLoading || (result.isFetching && !result.data),
         error: result.error,
-        available: version !== null,
+        available: version != null,
     };
 }
 

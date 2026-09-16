@@ -20,6 +20,18 @@ class PublicSiteTest extends TestCase
         }
     }
 
+    public function test_spa_shell_is_stateless_and_cacheable(): void
+    {
+        $this->withoutVite();
+
+        $response = $this->get('/parlament-2026/skupstina')->assertOk();
+
+        // No session or CSRF cookie for an anonymous visitor: nothing to write per request.
+        $this->assertSame([], $response->headers->getCookies(), 'the SPA shell must not start a session');
+        $this->assertStringContainsString('public', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=60', (string) $response->headers->get('Cache-Control'));
+    }
+
     public function test_reserved_paths_are_not_swallowed_by_the_spa(): void
     {
         $this->get('/admin')->assertRedirect('/admin/login');

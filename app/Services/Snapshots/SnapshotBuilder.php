@@ -9,6 +9,7 @@ use App\Enums\SnapshotSource;
 use App\Models\Allocation;
 use App\Models\Election;
 use App\Models\ElectionUnit;
+use App\Models\Incident;
 use App\Models\Municipality;
 use App\Models\PollingStation;
 use App\Models\Protocol;
@@ -48,6 +49,7 @@ final class SnapshotBuilder
             SnapshotSource::Registry => $this->registry($election),
             SnapshotSource::Turnout => $this->turnout($election),
             SnapshotSource::Results => $this->results($election),
+            SnapshotSource::Incidents => $this->incidents($election),
         };
     }
 
@@ -192,18 +194,21 @@ final class SnapshotBuilder
 
         $rows = TurnoutSnapshot::query()->where('election_id', $election->id)->get();
         $stationRows = $rows->whereNotNull('polling_station_id');
-        $municipalityRows = $rows->whereNull('polling_station_id');
+        // Indexed once: 9,000 stations x 7 cut-offs must not be re-scanned per municipality.
+        $stationSums = [];
+        foreach ($stationRows as $r) {
+            $stationSums[$r->municipality_id][$r->cutoff] = ($stationSums[$r->municipality_id][$r->cutoff] ?? 0) + (int) $r->voters_voted;
+        }
+        $municipalityValues = [];
+        foreach ($rows->whereNull('polling_station_id') as $r) {
+            $municipalityValues[$r->municipality_id][$r->cutoff] = (int) $r->voters_voted;
+        }
+        $stationsById = $stations->keyBy('id');
 
         // municipality value per cutoff: station-level sum wins over the municipality-level row
-        $value = function (int $municipalityId, string $cutoff) use ($stationRows, $municipalityRows): ?int {
-            $fromStations = $stationRows->where('municipality_id', $municipalityId)->where('cutoff', $cutoff);
-            if ($fromStations->isNotEmpty()) {
-                return (int) $fromStations->sum('voters_voted');
-            }
-            $row = $municipalityRows->where('municipality_id', $municipalityId)->where('cutoff', $cutoff)->first();
-
-            return $row?->voters_voted;
-        };
+        $value = fn (int $municipalityId, string $cutoff): ?int => $stationSums[$municipalityId][$cutoff]
+            ?? $municipalityValues[$municipalityId][$cutoff]
+            ?? null;
 
         $pct = fn (?int $voted, int $registered): ?float => ($voted === null || $registered <= 0) ? null : round($voted / $registered * 100, 2);
 
@@ -256,7 +261,6 @@ final class SnapshotBuilder
             if ($m === null) {
                 continue;
             }
-            $stationsById = $stations->keyBy('id');
             $files[$this->municipalityFile('turnout', $m)] = ['processed' => null, 'list' => $group->groupBy('polling_station_id')->map(function ($g, $stationId) use ($stationsById, $cutoffs, $pct) {
                 $s = $stationsById[$stationId];
 
@@ -274,6 +278,49 @@ final class SnapshotBuilder
         }
 
         return $files;
+    }
+
+    // ----------------------------------------------------------------- incidents
+
+    /**
+     * Election-day reports the commission chose to publish. Everything else about
+     * an incident (reporter, internal notes) stays in the admin.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function incidents(Election $election): array
+    {
+        $incidents = Incident::query()
+            ->where('election_id', $election->id)
+            ->public()
+            ->with(['pollingStation.municipality.district'])
+            ->orderByDesc('reported_at')->orderByDesc('id')
+            ->get();
+
+        $list = $incidents->map(function (Incident $i) {
+            $station = $i->pollingStation;
+            $municipality = $station->municipality;
+
+            return [
+                'id' => $i->id,
+                'station_id' => $station->publicId(),
+                'station_number' => $station->number,
+                'station_name' => $station->name,
+                'municipality_code' => $municipality->code,
+                'municipality_name' => $municipality->name,
+                'district_code' => $municipality->district->code,
+                'category' => $i->category->value,
+                'severity' => $i->severity->value,
+                'status' => $i->status->value,
+                'description' => $i->description,
+                'occurred_at' => $i->occurred_at->toIso8601String(),
+                'reported_at' => $i->reported_at->toIso8601String(),
+                'resolved_at' => $i->resolved_at?->toIso8601String(),
+                'resolution' => $i->status->isClosed() ? $i->resolution : null,
+            ];
+        })->values()->all();
+
+        return ['incidents.json' => ['processed' => null, 'list' => $list]];
     }
 
     // ------------------------------------------------------------------- results

@@ -55,6 +55,13 @@ return [
     'publish_interval_minutes' => (int) env('PUBLISH_INTERVAL_MINUTES', 2),
 
     /*
+    | Prijave sa biračkih mesta: how often the admin bell, the dashboard widget and
+    | the incidents table poll for new reports (seconds). This is the longest an
+    | alarm can wait to be seen.
+    */
+    'alarm_poll_seconds' => (int) env('ALARM_POLL_SECONDS', 15),
+
+    /*
     | Turnout cut-off times reported on election day.
     */
     'turnout_cutoffs' => ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00'],

@@ -51,8 +51,8 @@ SNAPSHOT_KEEP_VERSIONS=0                 # 0 = čuvaj sve verzije (auditabilnost
 PUBLISH_INTERVAL_MINUTES=2
 
 QUEUE_CONNECTION=database                # ili redis
-CACHE_STORE=database
-SESSION_DRIVER=database
+CACHE_STORE=redis                        # ili file; database znači SELECT po zahtevu za site_settings
+SESSION_DRIVER=database                  # samo admin pravi sesije, javna ljuska ne (vidi §5 i §8)
 SESSION_SECURE_COOKIE=true
 ```
 
@@ -104,8 +104,11 @@ server {
     server_name izbori.rs;
     root /var/www/izbori/public;
 
-    # SPA shell: sve rute koje nisu fajl idu na index.html (build iz Laravel-a),
-    # ili na php-fpm ako želiš da Laravel servira shell (route 'spa').
+    # SPA shell: Laravel je servira bez sesije i sa
+    # "Cache-Control: public, max-age=60", pa je nginx microcache drži minut i
+    # 10.000 istovremenih refresh-ova stiže do php-fpm jednom. Zona se
+    # deklariše u http {} bloku: fastcgi_cache_path /var/cache/nginx/izbori
+    # levels=1:2 keys_zone=izbori_shell:10m max_size=100m inactive=10m;
     location / {
         try_files $uri /index.php?$query_string;
     }
@@ -139,6 +142,14 @@ server {
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+
+        fastcgi_cache izbori_shell;
+        fastcgi_cache_key $scheme$host$request_uri;
+        fastcgi_cache_valid 200 60s;
+        fastcgi_cache_use_stale updating error timeout;   # jedan upstream zahtev osvežava, ostali dobijaju staru kopiju
+        fastcgi_cache_lock on;
+        fastcgi_ignore_headers Set-Cookie;               # ljuska ne šalje kolačiće; ako ih neko doda, ovo štiti keš
+        add_header X-Shell-Cache $upstream_cache_status;
     }
 }
 ```
@@ -217,11 +228,56 @@ objavljivanja istog izvora se ne mogu preklopiti.
 3. Dashboard: „Sa odstupanjem" mora da teži nuli — svaki flagged zapisnik čeka
    intervenciju OIK-a i **ne ulazi u zbir**, ali se javno vidi u `flagged.json`.
 4. Kad RIK utvrdi konačne rezultate: status → **Konačni rezultati**, poslednja
-   ručna objava sva tri izvora. Automatska objava se time gasi.
+   ručna objava svih izvora. Automatska objava se time gasi.
 5. `SNAPSHOT_KEEP_VERSIONS=0` — sve verzije ostaju; ~300 snapshot-ova × ~5 MB gzip
    po izbornoj noći je trivijalno.
+6. Prijave sa biračkih mesta (Admin → Prijave): svaka nova prijava stiže svim
+   korisnicima u zvonce (polling 15 s) i na nadzornu tablu. Javno izlazi samo ono
+   što admin označi „Objavi javno"; scheduler tada sam objavljuje izvor `incidents`.
 
-## 8. Integritet i auditabilnost
+## 8. Opterećenje: 10.000 ljudi osvežava sajt u istom trenutku
+
+Šta jedan refresh javnog sajta traži od servera:
+
+| Zahtev | Ko odgovara | Napomena |
+|---|---|---|
+| `GET /{izbor}/...` (SPA ljuska, ~4 KB) | nginx microcache / CDN, php-fpm najviše jednom u minutu | bez sesije, bez kolačića, `Cache-Control: public, max-age=60` |
+| `/build/*.js`, `/build/*.css` (~145 KB gzip) | nginx statika, `immutable` | browser ih ima keširane posle prve posete |
+| `index.json`, `{izbor}/config.json` (~1 KB) | nginx statika, `no-cache` | dva zahteva po refresh-u, plus jedan na minut dok je tab otvoren |
+| `{izbor}/{verzija}/{izvor}/*.json` | nginx statika / CDN, `immutable` | 3 do 6 fajlova po stranici, keširani zauvek |
+
+Dakle: **ni jedan zahtev javnog posetioca ne dolazi do PHP-a osim ljuske**, a i ona
+je keširana. Baza podataka javnom saobraćaju nije dostupna ni posredno. nginx
+sa statike servira desetine hiljada zahteva u sekundi po jezgru; 10.000 refresh-ova
+u istoj sekundi je ~50.000 statičkih zahteva, što jedan VPS sa CDN-om ispred
+izdrži bez problema. Bez CDN-a, propusni opseg je jedino ograničenje: prvi
+posetioci ~250 KB, povratni ~20 KB.
+
+Lokalna provera (dev server `artisan serve`, `ab -n 600 -c 60 -k`), pre i posle
+izbacivanja ljuske iz sesije:
+
+| | Pre | Posle |
+|---|---|---|
+| ljuska, zahteva/s | 57 | 75 (dev server, bez opcache; realni dobitak je microcache) |
+| novih redova u `sessions` na 600 zahteva | 600 | 0 |
+| kolačića po odgovoru | 2 | 0 |
+| `Cache-Control` | `no-cache, private` | `public, max-age=60, stale-while-revalidate=600` |
+| `index.json`, zahteva/s | 3.158 | 3.158 (statika, nepromenjeno) |
+
+Objava rezultata za pun obim (9.104 BM, 195 opština, izbor `parlamentarni-2023`)
+traje ~4 s po ciklusu, radi u queue worker-u i ne dodiruje javni saobraćaj.
+
+Ako želiš da to potvrdiš pred izbore: `ab -n 20000 -c 500 -k https://izbori.rs/parlament-2026/informacije`
+i isto za jedan `results-summary.json`; `X-Shell-Cache: HIT` u odgovoru znači da
+microcache radi.
+
+**Eloquent strict mode.** `AppServiceProvider` uključuje `Model::preventLazyLoading()`:
+svaka relacija koja nije eager-loadovana lokalno i u testovima baca izuzetak, a u
+produkciji se samo loguje (`Lazy loading violation` u `laravel.log`). Ako se to
+pojavi u logu, to je N+1 koji treba popraviti u `getEloquentQuery()` resursa ili u
+`SnapshotBuilder`-u, nikako isključiti guard.
+
+## 9. Integritet i auditabilnost
 
 Svaki snapshot ima `manifest.json` sa SHA-256 svakog fajla i hash-om koji
 uključuje hash prethodne verzije (lanac). Bilo ko može da proveri kopiju sa CDN-a:
@@ -233,7 +289,7 @@ scripts/verify-snapshot.sh /mnt/cdn-mirror/parlament-2026/12132145/results
 Preporuka: po objavi konačnih rezultata, hash poslednjeg manifesta objaviti i van
 sistema (službeni glasnik, saopštenje, potpisan PDF) — time je lanac usidren.
 
-## 9. Backup
+## 10. Backup
 
 - PostgreSQL: `pg_dump` na sat tokom izborne noći, dnevno inače; `wal-g`/`pgBackRest`
   za PITR ako je moguće.
@@ -241,7 +297,7 @@ sistema (službeni glasnik, saopštenje, potpisan PDF) — time je lanac usidren
   `rsync --ignore-existing` dovoljan za ogledalo.
 - `storage/app/public/scans`: skenirani zapisnici — trajni dokaz, backup obavezan.
 
-## 10. Bezbednost (sažetak iz spec §10)
+## 11. Bezbednost (sažetak iz spec §10)
 
 - Admin origin nije dostupan sa interneta (VPN/allow-list); `ADMIN_PATH` nasumičan.
 - Javni sloj je read-only statika: nema formi, kolačića, autentikacije.

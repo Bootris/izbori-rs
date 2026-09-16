@@ -37,7 +37,7 @@ export function Deadlines() {
 export function About() {
     const { slug, config, site } = useElection();
     const t = useT();
-    const sources: Source[] = ['registry', 'turnout', 'results'];
+    const sources: Source[] = ['registry', 'turnout', 'results', 'incidents'];
     const base = `${env.dataUrl}/${slug}`;
     return (
         <div>
@@ -47,6 +47,7 @@ export function About() {
                     <p>{t('Sve što ovaj sajt prikazuje su statički JSON fajlovi koje objavljuje sistem za unos. Svaka objava je nepromenljiva verzija sa sopstvenim manifestom (SHA-256 svakog fajla, vezan za prethodnu objavu), pa se u svakom trenutku može dokazati šta je bilo prikazano.')}</p>
                     <p>{t('U zbir ulaze samo verifikovani zapisnici biračkih odbora koji prolaze kontrolne sume K1 do K7. Zapisnici sa odstupanjem su javno vidljivi, ali se ne sabiraju dok ih izborna komisija ne ispravi. Procenat obrađenih biračkih mesta stoji uz svaki zbir.')}</p>
                     <p>{t('Raspodela mandata: D\'Hondtov sistem najvećeg količnika uz cenzus od 3 % birača koji su glasali; liste nacionalnih manjina učestvuju i ispod cenzusa, a njihovi količnici se uvećavaju za 35 %.')}</p>
+                    <p>{t('Vanredni događaji: prijave sa biračkih mesta unose članovi biračkih odbora i izbornih komisija u trenutku događaja, server beleži tačno vreme prijave, a javno se objavljuju samo one koje izborna komisija označi za objavu.')} <Link className="link" to={`/${slug}/vanredni-dogadjaji`}>{t('Pregled prijava')}</Link></p>
                     {site?.methodology_url && <p><a className="link" href={site.methodology_url}>{t('Metodologija i pravni osnov')}</a></p>}
                     {site?.contact_email && <p>{t('Kontakt')}: <a className="link" href={`mailto:${site.contact_email}`}>{site.contact_email}</a></p>}
                 </Card>

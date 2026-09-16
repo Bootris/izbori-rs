@@ -35,6 +35,9 @@ class AdminPanelProvider extends PanelProvider
             ->colors(['primary' => Color::hex('#1d4ed8')])
             ->navigationGroups(['Zapisnici', 'Izbori', 'Teritorija', 'Objava', 'Sistem'])
             ->sidebarCollapsibleOnDesktop()
+            // Incident alarms land in the bell (cadence: izbori.alarm_poll_seconds).
+            ->databaseNotifications()
+            ->databaseNotificationsPolling(config('izbori.alarm_poll_seconds').'s')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([Dashboard::class])

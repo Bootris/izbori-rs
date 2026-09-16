@@ -22,7 +22,7 @@ locally / PostgreSQL in production · React 19 + TypeScript + RTK Query + Tailwi
   `public/data/` (a CDN in production). Backend can be down on election night and
   the site keeps serving the last published snapshot.
 - **Immutable versioned snapshots.** `izbori:publish` writes
-  `data/{election}/{MMDDHHmm}/{registry|turnout|results}/…` + `manifest.json`
+  `data/{election}/{MMDDHHmm}/{registry|turnout|results|incidents}/…` + `manifest.json`
   (SHA-256 per file, chained to the previous snapshot), then atomically switches
   `data/{election}/config.json`. Old versions are never modified or deleted by
   default (`SNAPSHOT_KEEP_VERSIONS=0`).
@@ -45,21 +45,35 @@ locally / PostgreSQL in production · React 19 + TypeScript + RTK Query + Tailwi
   and verifies protocols of *its* municipality), `operator` (enters only, own
   municipality). Scoping lives in `App\Support\Access`.
 - **No third-party scripts on the public site.** No Google Fonts/Maps/Analytics.
+- **Eloquent strict mode is on** (`AppServiceProvider`): a lazy-loaded relation throws
+  locally and in tests, and is only logged in production. Eager-load in
+  `getEloquentQuery()` / `resolveRecord()`; never turn the guard off to make a test pass.
+- **The SPA shell is stateless.** `routes/web.php` serves it without the `web`
+  middleware group (no session row, no cookies) and with a public `Cache-Control`,
+  so a refresh storm is absorbed by nginx microcache / the CDN, not php-fpm.
+- **Incidents are an alarm, not a log.** `IncidentService::report()` is the only
+  writer; it stamps `reported_at` from the server clock and notifies every panel
+  user synchronously (`IncidentReported`, Filament database notifications).
+  Only `is_public` incidents reach `incidents.json`; the reporter never does.
 
 ## Layout
 
 ```
-app/Enums/                 ElectionType, AllocationMethod, ElectionStatus, ProtocolStatus, SubmitterType, SnapshotSource, UserRole
+app/Enums/                 ElectionType, AllocationMethod, ElectionStatus, ProtocolStatus, SubmitterType, SnapshotSource, UserRole,
+                           IncidentCategory, IncidentSeverity, IncidentStatus
 app/Models/                Election, ElectionUnit, District, Municipality, PollingStation, Submitter, ElectoralList,
-                           Candidate, Protocol(+Item, Scan, Revision), TurnoutSnapshot, Deadline, Allocation(+Seat), Snapshot, Setting, User
+                           Candidate, Protocol(+Item, Scan, Revision), TurnoutSnapshot, Deadline, Allocation(+Seat), Snapshot, Setting, User, Incident
 app/Services/Validation/   ProtocolValidator (K1–K7)
 app/Services/Protocols/    ProtocolService — the only way a protocol is written (unit resolution, validation, audit, verify/annul)
 app/Services/Allocation/   DHondtAllocator, MajorityRunoffAllocator, AllocatorFactory
 app/Services/Results/      ResultsAggregator — sums verified protocols per unit / municipality / election, always with `processed`
+app/Services/Incidents/    IncidentService — report (stamp + alarm everyone), review, close, publish flag
+app/Notifications/         IncidentReported — the alarm, database channel formatted for the Filament bell
 app/Services/Snapshots/    SnapshotBuilder (DB → file set), SnapshotPublisher (write, manifest, atomic pointer, index.json)
-app/Filament/              Resources per model, ManageSettings page, ElectionOverview widget
+app/Filament/              Resources per model, ManageSettings page, ElectionOverview + OpenIncidents widgets
 app/Console/Commands/      izbori:publish, izbori:demo, izbori:import-stations, izbori:count
-routes/console.php         scheduler: results every PUBLISH_INTERVAL_MINUTES while status=counting, turnout while voting
+routes/console.php         scheduler: results every PUBLISH_INTERVAL_MINUTES while status=counting, turnout while voting,
+                           incidents in both phases when a report changed
 routes/web.php             SPA catch-all (everything except admin path, /data, /storage, /build, /up)
 resources/js/              React SPA (entry app.tsx), resources/views/app.blade.php is the shell
 docs/                      spec, VTR analysis, data contract, deploy guide
@@ -72,10 +86,11 @@ docs/                      spec, VTR analysis, data contract, deploy guide
 ./start.sh --dev                # + Vite HMR, queue worker, scheduler (election-night simulation)
 ./start.sh --fresh              # wipe DB + public/data and redo everything
 php artisan izbori:demo --publish
-php artisan izbori:publish <slug> --source=results   # or --all
+php artisan izbori:publish <slug> --source=results   # registry | turnout | results | incidents, or --all
 php artisan izbori:import-stations <slug> stations.csv
 php artisan test                # sqlite :memory:, ~50 s (seeds the demo election)
 ./check-backend.sh              # smoke-test routes + data files
+ab -n 600 -c 60 -k http://127.0.0.1:8000/<slug>/informacije   # shell load check (see docs/DEPLOY.md §8)
 ```
 
 **Admin:** `/{ADMIN_PATH}` · seeded `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`. Demo
