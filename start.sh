@@ -32,14 +32,21 @@ if [ ! -f .env ]; then
     step "Kreiram .env iz .env.example (SQLite, admin lozinka: password)"
     cp .env.example .env
     sed -i 's/^SEED_ADMIN_PASSWORD=.*/SEED_ADMIN_PASSWORD=password/' .env
-    php artisan key:generate --no-interaction -q
 fi
 
-# 2. zavisnosti
-[ -d vendor ]       || { step "composer install"; composer install --no-interaction; }
-[ -d node_modules ] || { step "npm install"; npm install; }
+# 2. zavisnosti (uvek — composer/npm su no-op kad je sve već instalirano)
+step "composer install"
+composer install --no-interaction
+step "npm install"
+npm install
 
-# 3. baza
+# 3. APP_KEY (samo ako nedostaje — regeneracija bi obesmislila šifrovane podatke)
+if ! grep -qE '^APP_KEY=.+' .env; then
+    step "php artisan key:generate"
+    php artisan key:generate --no-interaction --force
+fi
+
+# 4. baza
 if grep -qE '^DB_CONNECTION=sqlite' .env; then
     touch database/database.sqlite
 fi
@@ -54,13 +61,13 @@ else
 fi
 php artisan storage:link >/dev/null 2>&1 || true
 
-# 4. demo izbor + objava snapshot-ova (samo ako nema nijednog izbora)
+# 5. demo izbor + objava snapshot-ova (samo ako nema nijednog izbora)
 if [ "$(php artisan izbori:count 2>/dev/null)" = "0" ]; then
     step "Nema izbora u bazi — seed-ujem demo izbor i objavljujem snapshot-ove"
     php artisan izbori:demo --publish
 fi
 
-# 5. frontend build
+# 6. frontend build
 if [ "$BUILD" = 1 ] || [ ! -f public/build/manifest.json ]; then
     step "npm run build"
     npm run build
