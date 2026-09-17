@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\SnapshotSource;
 use App\Models\Election;
+use App\Services\Snapshots\PublishBlockedException;
 use App\Services\Snapshots\SnapshotPublisher;
 use Illuminate\Console\Command;
 
@@ -31,13 +32,21 @@ class PublishSnapshot extends Command
             ? SnapshotSource::cases()
             : array_map(fn (string $s) => SnapshotSource::from($s), $this->option('source') ?: ['results']);
 
+        $failed = false;
         foreach ($sources as $source) {
-            $snapshot = $publisher->publish($election, $source);
+            try {
+                $snapshot = $publisher->publish($election, $source);
+            } catch (PublishBlockedException $e) {
+                $this->error(sprintf('%-9s → %s', $source->value, $e->getMessage()));
+                $failed = true;
+
+                continue;
+            }
             $this->info(sprintf('%-9s → %s  (%d fajlova, %s, %d ms)',
                 $source->value, $snapshot->version, $snapshot->file_count, $this->bytes($snapshot->bytes), $snapshot->duration_ms));
         }
 
-        return self::SUCCESS;
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 
     private function bytes(int $bytes): string

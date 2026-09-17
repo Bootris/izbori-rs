@@ -27,6 +27,7 @@ use App\Models\TurnoutSnapshot;
 use App\Models\User;
 use App\Services\Protocols\ProtocolService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 /**
  * A fictional parliamentary election for local development. Districts and
@@ -78,7 +79,9 @@ class DemoElectionSeeder extends Seeder
             'slug' => self::SLUG,
             'name' => 'Izbori za narodne poslanike 2026 (demo podaci)',
             'type' => ElectionType::Parliamentary,
-            'election_date' => '2026-12-13',
+            // Last Sunday: the demo is a "counting" night, and results can only be
+            // published after the polls closed on election day (Election::resultsPublishable).
+            'election_date' => now(config('izbori.polls.timezone'))->previous(Carbon::SUNDAY)->toDateString(),
             'round' => 1,
             'rounds' => 1,
             'allocation' => AllocationMethod::DHondt,
@@ -365,6 +368,13 @@ class DemoElectionSeeder extends Seeder
         User::updateOrCreate(['email' => 'operater.nis@example.com'], [
             'name' => 'Operater Niš – Medijana', 'password' => 'password', 'role' => UserRole::Operator, 'municipality_id' => $niš?->id,
         ]);
+
+        // A polling-station controller: writes one station, reads the rest of the municipality.
+        $controller = User::updateOrCreate(['email' => 'kontrolor.nis@example.com'], [
+            'name' => 'Kontrolor BM 1 Niš – Medijana', 'password' => 'password', 'role' => UserRole::Controller, 'municipality_id' => $niš?->id,
+        ]);
+        $station = $niš ? PollingStation::query()->where('municipality_id', $niš->id)->orderBy('number')->first() : null;
+        $controller->pollingStations()->sync($station ? [$station->id] : []);
     }
 
     private function personName(int $seed): string

@@ -23,6 +23,7 @@ class ViewProtocol extends ViewRecord
     {
         return [
             ProtocolResource::verifyAction(),
+            ProtocolResource::returnAction(),
             ProtocolResource::annulAction(),
             ProtocolResource::revalidateAction(),
             EditAction::make(),

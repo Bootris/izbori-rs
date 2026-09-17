@@ -69,7 +69,7 @@ class ElectionForm
                             ->default(ElectionStatus::Draft)
                             ->required()
                             ->native(false)
-                            ->helperText('„Brojanje" uključuje automatsku objavu rezultata na svakih par minuta.'),
+                            ->helperText('Rezultati se objavljuju samo u „Brojanje" ili „Konačni rezultati", i tek posle zatvaranja biračkih mesta na dan glasanja. „Brojanje" uključuje automatsku objavu na svakih par minuta; vraćanje unazad skida rezultate sa sajta. „Konačni rezultati" zaključavaju unos.'),
                         Textarea::make('description')
                             ->label('Opis')
                             ->rows(3)

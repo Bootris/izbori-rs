@@ -17,6 +17,7 @@ use App\Models\PollingStation;
 use App\Services\Incidents\IncidentService;
 use App\Support\Access;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DateTimePicker;
@@ -41,8 +42,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Prijave problema sa biračkih mesta. Anyone with an account files one for a
- * station of their municipality; verifiers and admins triage it; only an
- * admin decides whether it appears on the public site.
+ * station they may write (a controller: its own); verifiers and admins of the
+ * municipality triage it; only an admin decides whether it appears on the
+ * public site. Rules live in IncidentPolicy and IncidentService.
  */
 class IncidentResource extends Resource
 {
@@ -88,22 +90,13 @@ class IncidentResource extends Resource
                     ->components([
                         Select::make('election_id')
                             ->label('Izbori')
-                            ->options(fn () => Election::query()->where('status', '!=', ElectionStatus::Draft)->orderByDesc('election_date')->pluck('name', 'id'))
+                            ->options(fn () => Access::electionsOpenForEntry()->pluck('name', 'id'))
                             ->default(fn () => self::activeElection()?->id)
                             ->required()
                             ->native(false)
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('polling_station_id', null)),
-                        Select::make('polling_station_id')
-                            ->label('Biračko mesto')
-                            ->required()
-                            ->searchable()
-                            ->getSearchResultsUsing(fn (string $search, Get $get) => self::stationQuery($get)
-                                ->where(fn ($q) => $q->where('number', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%")
-                                    ->orWhereHas('municipality', fn ($m) => $m->where('name', 'like', "%{$search}%")))
-                                ->limit(50)->get()->mapWithKeys(fn (PollingStation $s) => [$s->id => self::stationLabel($s)]))
-                            ->getOptionLabelUsing(fn ($value) => ($s = PollingStation::with('municipality')->find($value)) ? self::stationLabel($s) : null)
-                            ->helperText('Pretraga po broju, nazivu ili opštini.'),
+                            ->afterStateUpdated(fn (Set $set, $state) => $set('polling_station_id', Access::singleWritableStation((int) $state)?->id)),
+                        self::stationSelect(),
                     ]),
                 Section::make('Šta se dogodilo')
                     ->columnSpanFull()
@@ -227,7 +220,7 @@ class IncidentResource extends Resource
             ->label('Preuzmi')
             ->icon(Heroicon::OutlinedHandRaised)
             ->color('warning')
-            ->visible(fn (Incident $record): bool => (Access::user()?->canVerify() ?? false) && $record->status === IncidentStatus::Open)
+            ->visible(fn (Incident $record): bool => (Access::user()?->can('triage', $record) ?? false) && $record->status === IncidentStatus::Open)
             ->action(function (Incident $record, IncidentService $service) {
                 $service->review($record, Access::user());
                 Notification::make()->success()->title('Prijava je u obradi')->send();
@@ -240,7 +233,7 @@ class IncidentResource extends Resource
             ->label('Zatvori')
             ->icon(Heroicon::OutlinedCheckCircle)
             ->color('success')
-            ->visible(fn (Incident $record): bool => (Access::user()?->canVerify() ?? false) && $record->isOpen())
+            ->visible(fn (Incident $record): bool => (Access::user()?->can('triage', $record) ?? false) && $record->isOpen())
             ->schema([
                 ToggleButtons::make('outcome')
                     ->label('Ishod')
@@ -265,7 +258,7 @@ class IncidentResource extends Resource
             ->label(fn (Incident $record): string => $record->is_public ? 'Skloni sa sajta' : 'Objavi javno')
             ->icon(fn (Incident $record) => $record->is_public ? Heroicon::OutlinedEyeSlash : Heroicon::OutlinedGlobeAlt)
             ->color('gray')
-            ->visible(fn (): bool => Access::isAdmin())
+            ->visible(fn (Incident $record): bool => Access::user()?->can('publish', $record) ?? false)
             ->requiresConfirmation()
             ->modalDescription('Javna prijava se pojavljuje u incidents.json i na stranici „Vanredni događaji" pri sledećoj objavi. Opis se objavljuje u celini, proverite da nema ličnih podataka.')
             ->action(function (Incident $record, IncidentService $service) {
@@ -276,19 +269,50 @@ class IncidentResource extends Resource
 
     // ---- helpers
 
-    /** The election whose polling day it is: voting first, then counting, then the newest that is not a draft. */
+    /** The election whose polling day it is: voting first, then counting, then the newest still open for entries. */
     public static function activeElection(): ?Election
     {
-        return Election::query()
-            ->where('status', '!=', ElectionStatus::Draft)
+        return Access::electionsOpenForEntry()
+            ->reorder()
             ->orderByRaw('case when status = ? then 0 when status = ? then 1 else 2 end', [ElectionStatus::Voting->value, ElectionStatus::Counting->value])
             ->orderByDesc('election_date')
             ->first();
     }
 
+    /** A controller reports from its own station (preselected); the others search their municipality. */
+    private static function stationSelect(): Select
+    {
+        $select = Select::make('polling_station_id')
+            ->label('Biračko mesto')
+            ->required()
+            ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                $station = $value ? PollingStation::query()->find((int) $value) : null;
+                if ($station === null || ! Access::canWriteStation($station)) {
+                    $fail('Nemate pravo prijave za ovo biračko mesto.');
+                }
+            });
+
+        if (Access::user()?->isController()) {
+            return $select
+                ->options(fn (Get $get) => self::stationQuery($get)->get()->mapWithKeys(fn (PollingStation $s) => [$s->id => self::stationLabel($s)]))
+                ->default(fn () => Access::singleWritableStation(self::activeElection()?->id)?->id)
+                ->native(false)
+                ->helperText('Samo biračka mesta koja su vam dodeljena.');
+        }
+
+        return $select
+            ->searchable()
+            ->getSearchResultsUsing(fn (string $search, Get $get) => self::stationQuery($get)
+                ->where(fn ($q) => $q->where('number', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%")
+                    ->orWhereHas('municipality', fn ($m) => $m->where('name', 'like', "%{$search}%")))
+                ->limit(50)->get()->mapWithKeys(fn (PollingStation $s) => [$s->id => self::stationLabel($s)]))
+            ->getOptionLabelUsing(fn ($value) => ($s = PollingStation::with('municipality')->find($value)) ? self::stationLabel($s) : null)
+            ->helperText('Pretraga po broju, nazivu ili opštini.');
+    }
+
     private static function stationQuery(Get $get): Builder
     {
-        return Access::scopeMunicipality(
+        return Access::scopeWritableStations(
             PollingStation::query()->where('election_id', $get('election_id'))->with('municipality')->orderBy('number')
         );
     }

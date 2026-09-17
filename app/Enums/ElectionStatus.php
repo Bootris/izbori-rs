@@ -42,4 +42,16 @@ enum ElectionStatus: string implements HasLabel, HasColor
     {
         return $this === self::Counting;
     }
+
+    /** Results may exist on the public site only once counting started (and after polls closed, see Election). */
+    public function publishesResults(): bool
+    {
+        return in_array($this, [self::Counting, self::Final], true);
+    }
+
+    /** Protocols, turnout and reports are entered between the registry going public and the final result. */
+    public function acceptsEntries(): bool
+    {
+        return in_array($this, [self::Registry, self::Voting, self::Counting], true);
+    }
 }

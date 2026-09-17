@@ -12,16 +12,17 @@ use Illuminate\Support\Facades\Schedule;
 
 /*
 | Election night: results are republished every N minutes while an election is
-| in "counting"; turnout while it is in "voting". Registry is published by hand.
+| in "counting" and the polls have closed (Election::resultsPublishable);
+| turnout while it is in "voting". Registry is published by hand.
 | Incident reports follow both phases, but only when a report changed since the
 | last incidents snapshot: an empty day must not pile up hundreds of versions.
 */
 $interval = max(1, (int) config('izbori.publish_interval_minutes'));
 
 Schedule::call(function () {
-    Election::query()->where('status', ElectionStatus::Counting)->each(
-        fn (Election $e) => PublishSnapshotJob::dispatch($e, SnapshotSource::Results)
-    );
+    Election::query()->where('status', ElectionStatus::Counting)->get()
+        ->filter(fn (Election $e) => $e->resultsPublishable())
+        ->each(fn (Election $e) => PublishSnapshotJob::dispatch($e, SnapshotSource::Results));
     Election::query()->where('status', ElectionStatus::Voting)->each(
         fn (Election $e) => PublishSnapshotJob::dispatch($e, SnapshotSource::Turnout)
     );

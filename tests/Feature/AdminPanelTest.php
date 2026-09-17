@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\ProtocolStatus;
 use App\Enums\UserRole;
 use App\Models\Election;
 use App\Models\Municipality;
@@ -37,7 +38,7 @@ class AdminPanelTest extends TestCase
     {
         $admin = $this->admin();
         $election = Election::firstOrFail();
-        $protocol = Protocol::firstOrFail();
+        $protocol = Protocol::where('status', ProtocolStatus::Entered)->firstOrFail();
         $list = $election->lists()->firstOrFail();
 
         foreach ([
@@ -66,6 +67,11 @@ class AdminPanelTest extends TestCase
         ] as $url) {
             $this->actingAs($admin)->get($url)->assertOk();
         }
+
+        // A verified protocol has no edit page — it goes back "na ispravku" first (ProtocolPolicy::update).
+        $verified = Protocol::where('status', ProtocolStatus::Verified)->firstOrFail();
+        $this->actingAs($admin)->get("/admin/protocols/{$verified->id}")->assertOk();
+        $this->actingAs($admin)->get("/admin/protocols/{$verified->id}/edit")->assertForbidden();
     }
 
     public function test_operator_only_sees_own_municipality_and_no_registry(): void

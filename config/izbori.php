@@ -67,6 +67,18 @@ return [
     'turnout_cutoffs' => ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00'],
 
     /*
+    | Polling hours (ZINP čl. 84), in local time. Results of an election can be
+    | published only after the polls closed on its election_date — the status
+    | alone is not enough, a mis-click must not put numbers on the public site
+    | before voting ended.
+    */
+    'polls' => [
+        'open' => env('POLLS_OPEN', '07:00'),
+        'close' => env('POLLS_CLOSE', '20:00'),
+        'timezone' => env('POLLS_TIMEZONE', 'Europe/Belgrade'),
+    ],
+
+    /*
     | A race is "close" when first and second are within this many percentage
     | points, or a list is within this margin of the threshold.
     */

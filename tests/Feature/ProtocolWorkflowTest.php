@@ -54,8 +54,8 @@ class ProtocolWorkflowTest extends TestCase
 
     public function test_consistent_protocol_is_entered_then_verified_and_edited_back_to_entered(): void
     {
-        $operator = User::factory()->create(['role' => UserRole::Operator]);
-        $verifier = User::factory()->create(['role' => UserRole::Verifier]);
+        $operator = User::factory()->create(['role' => UserRole::Operator, 'municipality_id' => $this->station->municipality_id]);
+        $verifier = User::factory()->create(['role' => UserRole::Verifier, 'municipality_id' => $this->station->municipality_id]);
 
         $protocol = $this->service->save(
             new Protocol(['election_id' => $this->election->id, 'polling_station_id' => $this->station->id, 'round' => 1]),
@@ -71,7 +71,22 @@ class ProtocolWorkflowTest extends TestCase
         $this->service->verify($protocol, $verifier);
         $this->assertSame(ProtocolStatus::Verified, $protocol->fresh()->status);
 
-        $edited = $this->service->save($protocol->fresh(), $this->numbers(['ballots_valid' => 589, 'ballots_invalid' => 11]), $this->votes(589), $verifier);
+        // A verified protocol is locked: it first goes back for correction, with the reason on record.
+        try {
+            $this->service->save($protocol->fresh(), $this->numbers(['ballots_valid' => 589]), $this->votes(589), $verifier);
+            $this->fail('editing a verified protocol must be refused');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('vratite na ispravku', $e->getMessage());
+        }
+        $this->assertSame(ProtocolStatus::Verified, $protocol->fresh()->status);
+
+        $returned = $this->service->returnForCorrection($protocol->fresh(), $verifier, 'Pogrešno prepisan broj nevažećih.');
+        $this->assertSame(ProtocolStatus::Entered, $returned->status);
+        $this->assertNull($returned->verified_at);
+        $this->assertSame('unverified', $returned->revisions()->first()->action);
+        $this->assertSame(['reason' => [null, 'Pogrešno prepisan broj nevažećih.']], $returned->revisions()->first()->changes);
+
+        $edited = $this->service->save($returned->fresh(), $this->numbers(['ballots_valid' => 589, 'ballots_invalid' => 11]), $this->votes(589), $verifier);
         $this->assertSame(ProtocolStatus::Entered, $edited->status);
         $this->assertNull($edited->verified_at);
         $this->assertSame(2, $edited->revision);
@@ -97,7 +112,7 @@ class ProtocolWorkflowTest extends TestCase
 
     public function test_operator_cannot_verify(): void
     {
-        $operator = User::factory()->create(['role' => UserRole::Operator]);
+        $operator = User::factory()->create(['role' => UserRole::Operator, 'municipality_id' => $this->station->municipality_id]);
         $protocol = $this->service->save(
             new Protocol(['election_id' => $this->election->id, 'polling_station_id' => $this->station->id, 'round' => 1]),
             $this->numbers(), $this->votes(590), $operator,

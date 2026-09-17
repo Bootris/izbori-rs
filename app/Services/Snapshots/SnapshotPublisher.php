@@ -29,8 +29,13 @@ final class SnapshotPublisher
 {
     public function __construct(private readonly SnapshotBuilder $builder) {}
 
+    /**
+     * @throws PublishBlockedException results before counting / before the polls closed
+     */
     public function publish(Election $election, SnapshotSource $source, ?User $actor = null): Snapshot
     {
+        $this->assertPublishable($election, $source);
+
         $started = hrtime(true);
         $generatedAt = now();
         $version = $this->uniqueVersion($election, $source, $generatedAt);
@@ -87,6 +92,39 @@ final class SnapshotPublisher
     public function refreshIndex(): void
     {
         $this->writeIndex($this->disk());
+    }
+
+    /**
+     * Take one source off the public site: config.json stops pointing at it, the
+     * published versions stay on disk untouched. The SPA then shows the
+     * "not yet published" state for that source.
+     */
+    public function withdraw(Election $election, SnapshotSource $source): void
+    {
+        $disk = $this->disk();
+        $path = "{$election->slug}/config.json";
+        if (! $disk->exists($path)) {
+            return;
+        }
+        $config = json_decode((string) $disk->get($path), true) ?: [];
+        if (($config[$source->value] ?? null) === null) {
+            return;
+        }
+
+        $config[$source->value] = null;
+        $config['updated'] = now()->toIso8601String();
+        $this->putAtomic($disk, $path, $this->encode($config));
+        $this->writeIndex($disk);
+
+        Log::warning('Snapshot withdrawn from the public site', ['election' => $election->slug, 'source' => $source->value]);
+    }
+
+    /** The scheduler, the console command and the admin button all pass through here. */
+    public function assertPublishable(Election $election, SnapshotSource $source): void
+    {
+        if ($source === SnapshotSource::Results && ($reason = $election->resultsBlockedReason()) !== null) {
+            throw new PublishBlockedException("Objava rezultata je blokirana: {$reason}");
+        }
     }
 
     private function disk(): Filesystem

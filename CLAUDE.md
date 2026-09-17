@@ -29,9 +29,9 @@ locally / PostgreSQL in production · React 19 + TypeScript + RTK Query + Tailwi
 - **Only verified protocols count.** A protocol enters aggregates only in status
   `verified`. Control sums K1–K7 (`App\Services\Validation\ProtocolValidator`)
   run on every save; a failing protocol is stored as `flagged`, shown publicly in
-  `flagged.json`, but never summed. Editing a verified protocol resets it to
-  `entered`/`flagged` and bumps `revision`; every change is audited in
-  `protocol_revisions`.
+  `flagged.json`, but never summed. A verified protocol is locked; „Vrati na
+  ispravku" (reason required) returns it to `entered`, an edit then bumps
+  `revision`; every change is audited in `protocol_revisions`.
 - **Election is data, not code.** `elections.type/allocation/seats/threshold_pct/
   minority_coef/rounds` drive everything; `election_units` are orthogonal to the
   district → municipality hierarchy (parliamentary = 1 unit, local = 1 per JLS).
@@ -43,7 +43,17 @@ locally / PostgreSQL in production · React 19 + TypeScript + RTK Query + Tailwi
   `config('izbori.admin_path')` from `ADMIN_PATH` — never hardcode `/admin`.
 - **Roles:** `admin` (RIK — everything, publishing), `verifier` (OIK/GIK — enters
   and verifies protocols of *its* municipality), `operator` (enters only, own
-  municipality). Scoping lives in `App\Support\Access`.
+  municipality), `controller` (birački odbor — writes only the stations assigned
+  in `user_polling_station`, reads the rest of its municipality). Rules live in
+  `App\Policies\{Protocol,TurnoutSnapshot,Incident}Policy` and are re-checked in
+  the services; `App\Support\Access` keeps forms and lists consistent with them.
+  A verified protocol is not editable: it goes back via `returnForCorrection()`
+  (reason recorded), and a `final` election accepts no entries at all.
+- **Results never go public early.** `SnapshotPublisher` refuses `results` unless
+  `Election::resultsPublishable()` (status counting/final AND after
+  `izbori.polls.close` on `election_date`); moving the status back withdraws the
+  `results` pointer from `config.json`. The demo election therefore dates itself
+  to the previous Sunday.
 - **No third-party scripts on the public site.** No Google Fonts/Maps/Analytics.
 - **Eloquent strict mode is on** (`AppServiceProvider`): a lazy-loaded relation throws
   locally and in tests, and is only logged in production. Eager-load in
@@ -61,6 +71,7 @@ locally / PostgreSQL in production · React 19 + TypeScript + RTK Query + Tailwi
 ```
 app/Enums/                 ElectionType, AllocationMethod, ElectionStatus, ProtocolStatus, SubmitterType, SnapshotSource, UserRole,
                            IncidentCategory, IncidentSeverity, IncidentStatus
+app/Policies/              ProtocolPolicy, TurnoutSnapshotPolicy, IncidentPolicy — who reads/writes/verifies what (Filament + Gate)
 app/Models/                Election, ElectionUnit, District, Municipality, PollingStation, Submitter, ElectoralList,
                            Candidate, Protocol(+Item, Scan, Revision), TurnoutSnapshot, Deadline, Allocation(+Seat), Snapshot, Setting, User, Incident
 app/Services/Validation/   ProtocolValidator (K1–K7)
@@ -94,8 +105,9 @@ ab -n 600 -c 60 -k http://127.0.0.1:8000/<slug>/informacije   # shell load check
 ```
 
 **Admin:** `/{ADMIN_PATH}` · seeded `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`. Demo
-also seeds `oik.nis@example.com` (verifier) and `operater.nis@example.com`
-(operator), both `password`, scoped to Niš – Medijana.
+also seeds `oik.nis@example.com` (verifier), `operater.nis@example.com`
+(operator) and `kontrolor.nis@example.com` (controller of BM 001), all `password`,
+scoped to Niš – Medijana.
 
 ## Conventions
 

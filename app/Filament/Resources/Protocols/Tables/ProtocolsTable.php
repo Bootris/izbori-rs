@@ -46,8 +46,10 @@ class ProtocolsTable
                         false: fn ($q) => $q->where('status', '!=', ProtocolStatus::Flagged),
                     ),
             ])
+            // Edit is hidden by ProtocolPolicy::update (verified, closed election, foreign station).
             ->recordActions([
                 ProtocolResource::verifyAction(),
+                ProtocolResource::returnAction(),
                 ViewAction::make(),
                 EditAction::make(),
             ]);

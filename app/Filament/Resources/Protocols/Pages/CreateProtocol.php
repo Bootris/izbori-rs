@@ -11,7 +11,9 @@ use App\Services\Protocols\ProtocolService;
 use App\Support\Access;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class CreateProtocol extends CreateRecord
 {
@@ -27,7 +29,12 @@ class CreateProtocol extends CreateRecord
             'round' => $attributes['round'] ?? 1,
         ]);
 
-        $protocol = app(ProtocolService::class)->save($protocol, $attributes, $votes, Access::user());
+        try {
+            $protocol = app(ProtocolService::class)->save($protocol, $attributes, $votes, Access::user());
+        } catch (RuntimeException|AuthorizationException $e) {
+            Notification::make()->danger()->title('Zapisnik nije sačuvan')->body($e->getMessage())->persistent()->send();
+            $this->halt();
+        }
         ProtocolResource::syncScans($protocol, $scans);
 
         if ($protocol->status === ProtocolStatus::Flagged) {

@@ -302,6 +302,12 @@ sistema (službeni glasnik, saopštenje, potpisan PDF) — time je lanac usidren
 - Admin origin nije dostupan sa interneta (VPN/allow-list); `ADMIN_PATH` nasumičan.
 - Javni sloj je read-only statika: nema formi, kolačića, autentikacije.
 - Uloge: `admin` (RIK), `verifier` (OIK — verifikuje samo svoju opštinu), `operator`
-  (unos samo za svoju opštinu). Verifikacija menja status i upisuje audit zapis
-  (`protocol_revisions`: ko, kada, sa koje vrednosti na koju).
+  (unos samo za svoju opštinu), `controller` (kontrolor biračkog mesta — upisuje
+  samo BM dodeljena u `user_polling_station`, ostatak opštine čita). Pravila su u
+  `App\Policies` i servisima, ne samo u formama. Verifikacija menja status i
+  upisuje audit zapis (`protocol_revisions`: ko, kada, sa koje vrednosti na koju);
+  verifikovan zapisnik se menja tek posle „Vrati na ispravku" sa razlogom.
+- Rezultati se objavljuju samo u statusu `counting`/`final` i posle `POLLS_CLOSE`
+  (20:00, `POLLS_TIMEZONE=Europe/Belgrade`) na dan glasanja; `final` izbori ne
+  primaju unos.
 - Bez third-party skripti na javnom sajtu; fontovi i analitika self-hosted.

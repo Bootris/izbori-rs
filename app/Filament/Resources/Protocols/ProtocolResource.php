@@ -84,7 +84,7 @@ class ProtocolResource extends Resource
         ];
     }
 
-    // ---- shared actions (table rows + view/edit headers)
+    // ---- shared actions (table rows + view/edit headers); visibility follows ProtocolPolicy
 
     public static function verifyAction(): Action
     {
@@ -92,9 +92,9 @@ class ProtocolResource extends Resource
             ->label('Verifikuj')
             ->icon(Heroicon::OutlinedCheckBadge)
             ->color('success')
-            ->visible(fn (Protocol $record): bool => (Access::user()?->canVerify() ?? false) && $record->status === ProtocolStatus::Entered)
+            ->visible(fn (Protocol $record): bool => Access::user()?->can('verify', $record) ?? false)
             ->requiresConfirmation()
-            ->modalDescription('Verifikovan zapisnik ulazi u zbir i objavljuje se. Svaka kasnija izmena vraća ga u status „unet".')
+            ->modalDescription('Verifikovan zapisnik ulazi u zbir i objavljuje se. Posle toga se menja samo preko „Vrati na ispravku" uz razlog.')
             ->action(function (Protocol $record, ProtocolService $service) {
                 try {
                     $service->verify($record, Access::user());
@@ -105,13 +105,34 @@ class ProtocolResource extends Resource
             });
     }
 
+    /** The only door to editing a verified protocol: it leaves the aggregates again, with the reason on record. */
+    public static function returnAction(): Action
+    {
+        return Action::make('return')
+            ->label('Vrati na ispravku')
+            ->icon(Heroicon::OutlinedArrowUturnLeft)
+            ->color('warning')
+            ->visible(fn (Protocol $record): bool => Access::user()?->can('unverify', $record) ?? false)
+            ->schema([Textarea::make('reason')->label('Razlog vraćanja na ispravku')->required()->rows(3)])
+            ->requiresConfirmation()
+            ->modalDescription('Zapisnik izlazi iz zbira i vraća se u status „unet" dok se ne ispravi i ponovo verifikuje. Razlog ostaje u istoriji izmena.')
+            ->action(function (Protocol $record, array $data, ProtocolService $service) {
+                try {
+                    $service->returnForCorrection($record, Access::user(), (string) $data['reason']);
+                    Notification::make()->warning()->title('Zapisnik vraćen na ispravku')->send();
+                } catch (RuntimeException $e) {
+                    Notification::make()->danger()->title('Vraćanje nije moguće')->body($e->getMessage())->send();
+                }
+            });
+    }
+
     public static function annulAction(): Action
     {
         return Action::make('annul')
             ->label('Poništi')
             ->icon(Heroicon::OutlinedXCircle)
             ->color('warning')
-            ->visible(fn (Protocol $record): bool => (Access::user()?->canVerify() ?? false) && $record->status !== ProtocolStatus::Annulled)
+            ->visible(fn (Protocol $record): bool => Access::user()?->can('annul', $record) ?? false)
             ->schema([Textarea::make('reason')->label('Razlog poništenja')->required()->rows(3)])
             ->requiresConfirmation()
             ->action(function (Protocol $record, array $data, ProtocolService $service) {
@@ -126,7 +147,7 @@ class ProtocolResource extends Resource
             ->label('Ponovo proveri')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('gray')
-            ->visible(fn (Protocol $record): bool => $record->status === ProtocolStatus::Annulled)
+            ->visible(fn (Protocol $record): bool => Access::user()?->can('revalidate', $record) ?? false)
             ->action(function (Protocol $record, ProtocolService $service) {
                 $record->status = ProtocolStatus::Entered;
                 $service->revalidate($record, Access::user());

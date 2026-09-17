@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace App\Services\Protocols;
 
 use App\Enums\ProtocolStatus;
+use App\Models\Election;
 use App\Models\ElectionUnit;
+use App\Models\PollingStation;
 use App\Models\Protocol;
 use App\Models\ProtocolRevision;
 use App\Models\User;
 use App\Services\Validation\ProtocolValidator;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
  * The only way a protocol is written. Resolves the election unit, runs the
  * control sums, keeps the audit trail and makes sure an edited protocol has
- * to be verified again before it counts.
+ * to be verified again before it counts. With an actor given it also enforces
+ * the write scope (a controller only its own station), the election lock and
+ * the rule that a verified protocol first goes back for correction.
  */
 final class ProtocolService
 {
@@ -25,15 +30,24 @@ final class ProtocolService
     /**
      * @param array<string, mixed> $attributes  protocol columns (see Protocol::$fillable)
      * @param array<int, int>      $itemVotes   electoral_list_id => votes
+     *
+     * @throws AuthorizationException the actor may not write this station
+     * @throws RuntimeException       election closed, protocol still verified, station outside every unit
      */
     public function save(Protocol $protocol, array $attributes, array $itemVotes, ?User $actor): Protocol
     {
         return DB::transaction(function () use ($protocol, $attributes, $itemVotes, $actor) {
             $isNew = ! $protocol->exists;
+            $protocol->fill(array_intersect_key($attributes, array_flip(['election_id', 'polling_station_id', 'round'])));
+            $station = PollingStation::query()->findOrFail($protocol->polling_station_id);
+            $this->assertWritable($protocol, $station, $actor);
+            if (! $isNew && $protocol->status === ProtocolStatus::Verified) {
+                throw new RuntimeException('Zapisnik je verifikovan — prvo ga vratite na ispravku (sa razlogom), pa izmenite.');
+            }
             $before = $isNew ? [] : $protocol->only(Protocol::COUNT_FIELDS) + ['items' => $protocol->items()->pluck('votes', 'electoral_list_id')->all()];
 
             $protocol->fill($attributes);
-            $protocol->election_unit_id = $this->resolveUnitId($protocol);
+            $protocol->election_unit_id = $this->resolveUnitId($protocol, $station);
 
             if ($isNew) {
                 $protocol->entered_by = $actor?->id;
@@ -67,9 +81,7 @@ final class ProtocolService
 
     public function verify(Protocol $protocol, User $actor): Protocol
     {
-        if (! $actor->canVerify()) {
-            throw new RuntimeException('Korisnik nema pravo verifikacije.');
-        }
+        $this->assertCanTriage($protocol, $actor);
 
         $itemVotes = $protocol->items()->pluck('votes', 'electoral_list_id')->map(fn ($v) => (int) $v)->all();
         $result = $this->validator->validate($protocol, $itemVotes);
@@ -89,8 +101,37 @@ final class ProtocolService
         return $protocol;
     }
 
+    /**
+     * Take a verified protocol out of the aggregates again so it can be corrected.
+     * The reason is part of the audit trail — this is the only door to editing
+     * after verification.
+     */
+    public function returnForCorrection(Protocol $protocol, User $actor, string $reason): Protocol
+    {
+        $this->assertCanTriage($protocol, $actor);
+        if ($protocol->status !== ProtocolStatus::Verified) {
+            throw new RuntimeException('Samo verifikovan zapisnik se vraća na ispravku.');
+        }
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new RuntimeException('Razlog vraćanja na ispravku je obavezan.');
+        }
+
+        $protocol->forceFill([
+            'status' => ProtocolStatus::Entered,
+            'verified_by' => null,
+            'verified_at' => null,
+            'notes' => trim(($protocol->notes ?? '')."\nVraćen na ispravku: {$reason}"),
+        ])->save();
+
+        $this->record($protocol, $actor, 'unverified', ['reason' => [null, $reason]]);
+
+        return $protocol;
+    }
+
     public function annul(Protocol $protocol, User $actor, string $reason): Protocol
     {
+        $this->assertCanTriage($protocol, $actor);
         $protocol->forceFill([
             'status' => ProtocolStatus::Annulled,
             'verified_by' => null,
@@ -111,10 +152,39 @@ final class ProtocolService
         return $this->save($protocol, [], $itemVotes, $actor);
     }
 
-    private function resolveUnitId(Protocol $protocol): int
+    /** Write scope and election lock, for everything that changes numbers. Seeders and console pass no actor. */
+    private function assertWritable(Protocol $protocol, PollingStation $station, ?User $actor): void
     {
-        $station = $protocol->pollingStation()->firstOrFail();
+        if ($actor === null) {
+            return;
+        }
+        $election = Election::query()->findOrFail($protocol->election_id);
+        if (! $election->acceptsEntries()) {
+            throw new RuntimeException("Izbori „{$election->name}\" su u statusu „{$election->status->getLabel()}\" — unos i izmene nisu dozvoljeni.");
+        }
+        if (! $actor->canWriteStation($station)) {
+            throw new AuthorizationException("Nemate pravo unosa za biračko mesto {$station->number}.");
+        }
+    }
 
+    /** Verify / return / annul: a verifier of that municipality (or an admin) while the election is open. */
+    private function assertCanTriage(Protocol $protocol, User $actor): void
+    {
+        if (! $actor->canVerify()) {
+            throw new RuntimeException('Korisnik nema pravo verifikacije.');
+        }
+        $election = Election::query()->findOrFail($protocol->election_id);
+        if (! $election->acceptsEntries()) {
+            throw new RuntimeException("Izbori „{$election->name}\" su u statusu „{$election->status->getLabel()}\" — zapisnici su zaključani.");
+        }
+        $station = PollingStation::query()->findOrFail($protocol->polling_station_id);
+        if (! $actor->canReadMunicipality($station->municipality_id)) {
+            throw new AuthorizationException("Biračko mesto {$station->number} nije u vašoj opštini.");
+        }
+    }
+
+    private function resolveUnitId(Protocol $protocol, PollingStation $station): int
+    {
         $unit = ElectionUnit::query()
             ->where('election_id', $protocol->election_id)
             ->whereHas('municipalities', fn ($q) => $q->where('municipalities.id', $station->municipality_id))

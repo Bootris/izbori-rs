@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Incidents;
 
 use App\Enums\IncidentStatus;
+use App\Models\Election;
 use App\Models\Incident;
 use App\Models\PollingStation;
 use App\Models\User;
@@ -80,17 +81,22 @@ final class IncidentService
     }
 
     /**
-     * A verifier or operator reports only for stations of their own municipality.
-     * The form already searches within that scope; this is the server-side check
-     * that a hand-crafted request cannot skip.
+     * A report comes only from a station the reporter may write: a controller
+     * from its own station, a verifier or operator from its municipality. The
+     * form already searches within that scope; this is the server-side check
+     * that a hand-crafted request cannot skip. A closed election takes no reports.
      */
     private function assertCanReportFor(PollingStation $station, ?User $reporter): void
     {
-        if ($reporter === null || $reporter->isAdmin()) {
+        if ($reporter === null) {
             return;
         }
-        if ($reporter->municipality_id === null || $reporter->municipality_id !== $station->municipality_id) {
-            throw new AuthorizationException('Biračko mesto nije u vašoj opštini.');
+        $election = Election::query()->findOrFail($station->election_id);
+        if (! $election->acceptsEntries()) {
+            throw new AuthorizationException("Izbori „{$election->name}\" su u statusu „{$election->status->getLabel()}\" — prijave se više ne primaju.");
+        }
+        if (! $reporter->canWriteStation($station)) {
+            throw new AuthorizationException("Nemate pravo prijave za biračko mesto {$station->number}.");
         }
     }
 

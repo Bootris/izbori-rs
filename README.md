@@ -28,7 +28,8 @@ zapisnici), objavu sva tri snapshot izvora i `npm run build`.
 | Admin | `http://127.0.0.1:8000/admin` (`ADMIN_PATH` u `.env`) |
 | Admin nalog | `admin@example.com` / `password` (iz `SEED_ADMIN_*`) |
 | OIK nalog (demo) | `oik.nis@example.com` / `password` — verifikator, samo Niš – Medijana |
-| Operater (demo) | `operater.nis@example.com` / `password` — samo unos |
+| Operater (demo) | `operater.nis@example.com` / `password` — samo unos, cela opština |
+| Kontrolor BM (demo) | `kontrolor.nis@example.com` / `password` — upisuje samo BM 001, ostatak opštine čita |
 
 > ⚠ Promeni lozinke i postavi nasumičan `ADMIN_PATH` pre bilo kakvog javnog deploy-a.
 
@@ -46,17 +47,21 @@ Biračko mesto / OIK  →  Filament admin (unos + K1–K7 kontrole + verifikacij
                                                               React SPA čita samo statičke JSON fajlove
 ```
 
-1. **Unos.** Operater/OIK unosi zapisnik biračkog odbora. Kontrolne sume K1–K7 se
-   računaju uživo; zapisnik sa greškom se čuva kao *sa odstupanjem*, javno se
-   vidi, ali ne ulazi u zbir.
+1. **Unos.** Kontrolor biračkog mesta (samo svoje BM) ili operater/OIK (cela
+   opština) unosi presek izlaznosti, zapisnik biračkog odbora i sken. Kontrolne
+   sume K1–K7 se računaju uživo; zapisnik sa greškom se čuva kao *sa
+   odstupanjem*, javno se vidi, ali ne ulazi u zbir.
 2. **Verifikacija.** OIK verifikuje; tek verifikovani zapisnik ulazi u agregate.
-   Svaka izmena vraća ga u „unet" i pamti se u istoriji (ko, kada, sa koje na koju
-   vrednost).
+   Verifikovan zapisnik se ne menja direktno: OIK ga „vraća na ispravku" uz razlog,
+   pa se posle izmene ponovo verifikuje. Sve se pamti u istoriji (ko, kada, sa
+   koje na koju vrednost).
 3. **Objava.** `izbori:publish` (ručno iz admina ili scheduler na 2 min tokom
    brojanja) generiše kompletan set fajlova u novi, nepromenljiv folder, upiše
    manifest sa hash-om svakog fajla vezanim za prethodnu objavu, pa tek na kraju
-   prebaci `config.json`. Prekid u bilo kojoj tački ne ostavlja sajt u
-   nekonzistentnom stanju.
+   prebaci `config.json`. Rezultati se objavljuju samo u statusu „Brojanje" ili
+   „Konačni rezultati" i tek posle zatvaranja biračkih mesta (20:00 na dan
+   glasanja); vraćanje statusa unazad skida rezultate sa sajta. Prekid u bilo
+   kojoj tački ne ostavlja sajt u nekonzistentnom stanju.
 4. **Prikaz.** SPA polluje `config.json`; kad se verzija promeni, povlači nove
    fajlove. Na svakom agregatu stoji `processed` — procenat obrađenih biračkih
    mesta.
@@ -69,7 +74,7 @@ Biračko mesto / OIK  →  Filament admin (unos + K1–K7 kontrole + verifikacij
 | **Izbori** | Izbori (tip, datum, pravila: mandati, cenzus, manjinski koeficijent, krugovi), izborne jedinice, rokovi, podnosioci, izborne liste i kandidati |
 | **Teritorija** | Okruzi, opštine, biračka mesta (ili CSV uvoz: `izbori:import-stations`) |
 | **Objava** | Istorija snapshot-ova (verzija, hash, veličina, trajanje), ručna objava |
-| **Sistem** | Korisnici i uloge (admin / verifikator / operater + opština), podešavanja sajta |
+| **Sistem** | Korisnici i uloge (admin / verifikator / operater + opština, kontrolor + dodeljena biračka mesta), podešavanja sajta |
 
 ## Komande
 

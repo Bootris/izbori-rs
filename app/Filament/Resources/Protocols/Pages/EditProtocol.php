@@ -12,7 +12,9 @@ use App\Support\Access;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class EditProtocol extends EditRecord
 {
@@ -43,8 +45,13 @@ class EditProtocol extends EditRecord
         [$attributes, $votes, $scans] = ProtocolResource::splitFormData($data);
         unset($attributes['election_id'], $attributes['polling_station_id'], $attributes['round']);
 
-        /** @var Protocol $record */
-        $record = app(ProtocolService::class)->save($record, $attributes, $votes, Access::user());
+        try {
+            /** @var Protocol $record */
+            $record = app(ProtocolService::class)->save($record, $attributes, $votes, Access::user());
+        } catch (RuntimeException|AuthorizationException $e) {
+            Notification::make()->danger()->title('Izmena nije sačuvana')->body($e->getMessage())->persistent()->send();
+            $this->halt();
+        }
         ProtocolResource::syncScans($record, $scans);
 
         if ($record->status === ProtocolStatus::Flagged) {
