@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Protocols\Schemas;
 
 use App\Models\Protocol;
+use App\Models\ProtocolRevision;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -37,7 +38,14 @@ class ProtocolInfolist
                             ->label('Greške kontrolnih suma')
                             ->placeholder('Nema')
                             ->listWithLineBreaks()
-                            ->formatStateUsing(fn ($state) => is_array($state) ? array_map(fn ($k, $v) => "{$k}: {$v}", array_keys($state), $state) : $state),
+                            ->state(function (Protocol $record): ?array {
+                                $errors = $record->validation_errors;
+                                if (! is_array($errors) || $errors === []) {
+                                    return null;
+                                }
+
+                                return array_map(fn ($k, $v) => "{$k}: {$v}", array_keys($errors), $errors);
+                            }),
                         TextEntry::make('verifiedBy.name')->label('Verifikovao')->placeholder('—'),
                         TextEntry::make('verified_at')->label('Verifikovano')->dateTime('d.m.Y H:i')->placeholder('—'),
                         TextEntry::make('enteredBy.name')->label('Uneo')->placeholder('—'),
@@ -58,20 +66,41 @@ class ProtocolInfolist
                 Section::make('Glasovi po listama')
                     ->columnSpanFull()
                     ->components([
-                        RepeatableEntry::make('items')
+                        TextEntry::make('votes_by_list')
                             ->hiddenLabel()
-                            ->columns(3)
-                            ->schema([
-                                TextEntry::make('list.number')->label('Br.'),
-                                TextEntry::make('list.name')->label('Lista'),
-                                TextEntry::make('votes')->label('Glasova')->numeric(),
-                            ]),
+                            ->placeholder('Nema unetih glasova po listama.')
+                            ->listWithLineBreaks()
+                            ->state(function (Protocol $record): ?array {
+                                $lines = $record->items
+                                    ->sortBy(fn ($item) => $item->list?->number ?? PHP_INT_MAX)
+                                    ->map(function ($item): string {
+                                        $number = $item->list?->number;
+                                        $name = $item->list?->name ?? 'Lista #'.$item->electoral_list_id;
+                                        $label = $number !== null ? "{$number}. {$name}" : $name;
+
+                                        return $label.' — '.number_format((int) $item->votes, 0, ',', '.');
+                                    })
+                                    ->values()
+                                    ->all();
+                                if ($lines !== []) {
+                                    return $lines;
+                                }
+                                foreach ($record->revisions as $revision) {
+                                    $fromHistory = $revision->itemSnapshotLines();
+                                    if ($fromHistory !== []) {
+                                        return $fromHistory;
+                                    }
+                                }
+
+                                return null;
+                            }),
                     ]),
                 Section::make('Skenirani zapisnik')
                     ->columnSpan(1)
                     ->components([
                         RepeatableEntry::make('scans')
                             ->hiddenLabel()
+                            ->placeholder('Nema skeniranih stranica.')
                             ->schema([
                                 TextEntry::make('original_name')->label('Fajl')->url(fn ($record) => $record->url(), shouldOpenInNewTab: true)->color('primary'),
                             ]),
@@ -81,16 +110,21 @@ class ProtocolInfolist
                     ->components([
                         RepeatableEntry::make('revisions')
                             ->hiddenLabel()
-                            ->columns(3)
+                            ->placeholder('Još nema izmena.')
                             ->schema([
                                 TextEntry::make('created_at')->label('Kada')->dateTime('d.m.Y H:i:s'),
                                 TextEntry::make('user.name')->label('Ko')->placeholder('sistem'),
-                                TextEntry::make('action')->label('Radnja')->badge()->color('gray'),
-                                TextEntry::make('changes')
+                                TextEntry::make('action')
+                                    ->label('Radnja')
+                                    ->badge()
+                                    ->formatStateUsing(fn (string $state): string => ProtocolRevision::formatActionLabel($state))
+                                    ->color(fn (ProtocolRevision $record): string => $record->actionColor()),
+                                TextEntry::make('changes_summary')
                                     ->label('Izmene')
                                     ->columnSpanFull()
                                     ->placeholder('—')
-                                    ->formatStateUsing(fn ($state) => is_array($state) ? json_encode($state, JSON_UNESCAPED_UNICODE) : $state),
+                                    ->listWithLineBreaks()
+                                    ->bulleted(),
                             ]),
                     ]),
             ]);

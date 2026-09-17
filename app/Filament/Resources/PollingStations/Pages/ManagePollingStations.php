@@ -7,6 +7,7 @@ namespace App\Filament\Resources\PollingStations\Pages;
 use App\Filament\Resources\PollingStations\PollingStationResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
+use Filament\Support\Enums\Width;
 
 class ManagePollingStations extends ManageRecords
 {
@@ -14,6 +15,6 @@ class ManagePollingStations extends ManageRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()];
+        return [CreateAction::make()->modalWidth(Width::FiveExtraLarge)];
     }
 }

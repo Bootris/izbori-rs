@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Filament\Resources\PollingStations;
 
 use App\Filament\Resources\PollingStations\Pages\ManagePollingStations;
+use App\Filament\Resources\PollingStations\Schemas\PollingStationForm;
 use App\Models\PollingStation;
 use App\Support\Access;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -59,21 +57,7 @@ class PollingStationResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make()->columns(3)->components([
-                Select::make('election_id')->label('Izbori')->relationship('election', 'name')->required()->native(false),
-                Select::make('municipality_id')->label('Opština')->relationship('municipality', 'name')->required()->searchable()->preload(),
-                TextInput::make('number')->label('Broj')->required()->maxLength(16),
-                TextInput::make('name')->label('Naziv')->required()->maxLength(255)->columnSpan(2),
-                TextInput::make('registered_voters')->label('Upisanih birača')->numeric()->minValue(0)->required()->default(0),
-                TextInput::make('address')->label('Adresa')->maxLength(255)->columnSpan(2),
-                Toggle::make('accessible')->label('Pristupačno osobama sa invaliditetom'),
-                Toggle::make('is_diaspora')->label('U inostranstvu (DKP)')->live(),
-                TextInput::make('country')->label('Država')->maxLength(64)->visible(fn ($get) => (bool) $get('is_diaspora')),
-                TextInput::make('lat')->label('Geo širina')->numeric()->step(0.000001),
-                TextInput::make('lng')->label('Geo dužina')->numeric()->step(0.000001),
-            ]),
-        ]);
+        return PollingStationForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -94,7 +78,10 @@ class PollingStationResource extends Resource
                 SelectFilter::make('election')->label('Izbori')->relationship('election', 'name'),
                 SelectFilter::make('municipality')->label('Opština')->relationship('municipality', 'name')->searchable()->preload(),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()]);
+            ->recordActions([
+                EditAction::make()->modalWidth(Width::FiveExtraLarge),
+                DeleteAction::make(),
+            ]);
     }
 
     public static function getPages(): array

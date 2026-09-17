@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\ProtocolStatus;
 use App\Enums\UserRole;
 use App\Models\Election;
+use App\Models\Incident;
 use App\Models\Municipality;
 use App\Models\Protocol;
 use App\Models\User;
@@ -60,7 +61,7 @@ class AdminPanelTest extends TestCase
             '/admin/turnout-snapshots',
             '/admin/incidents',
             '/admin/incidents/create',
-            '/admin/incidents/'.\App\Models\Incident::query()->value('id'),
+            '/admin/incidents/'.Incident::query()->value('id'),
             '/admin/snapshots',
             '/admin/users',
             '/admin/manage-settings',
@@ -70,7 +71,13 @@ class AdminPanelTest extends TestCase
 
         // A verified protocol has no edit page — it goes back "na ispravku" first (ProtocolPolicy::update).
         $verified = Protocol::where('status', ProtocolStatus::Verified)->firstOrFail();
-        $this->actingAs($admin)->get("/admin/protocols/{$verified->id}")->assertOk();
+        $this->actingAs($admin)->get("/admin/protocols/{$verified->id}")
+            ->assertOk()
+            ->assertDontSeeText('[null,')
+            ->assertSeeText('Unet')
+            ->assertSeeText('Upisanih birača:')
+            ->assertSeeText('Glasovi po listama')
+            ->assertSeeText('Građanska alternativa (demo)');
         $this->actingAs($admin)->get("/admin/protocols/{$verified->id}/edit")->assertForbidden();
     }
 
